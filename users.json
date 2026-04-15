@@ -1,0 +1,50 @@
+{
+  "test": {
+    "pass": "pass123",
+    "pfp": "pic",
+    "tokens": 0,
+    "createdAt": "2026-04-12T22:04:15.139Z",
+    "data": {},
+    "inventory": [],
+    "level": 1,
+    "xp": 0,
+    "lastLogin": null,
+    "settings": {
+      "sound": true,
+      "music": true,
+      "theme": "default"
+    }
+  },
+  "CritStrike": {
+    "pass": "c@ss@n0v@",
+    "pfp": "https://via.placeholder.com/40",
+    "tokens": 0,
+    "createdAt": "2026-04-12T22:08:19.766Z",
+    "data": {},
+    "inventory": [],
+    "level": 1,
+    "xp": 0,
+    "lastLogin": null,
+    "settings": {
+      "sound": true,
+      "music": true,
+      "theme": "default"
+    }
+  },
+  "Ray": {
+    "pass": "12345",
+    "pfp": "https://via.placeholder.com/40",
+    "tokens": 0,
+    "createdAt": "2026-04-12T22:19:10.992Z",
+    "data": {},
+    "inventory": [],
+    "level": 1,
+    "xp": 0,
+    "lastLogin": null,
+    "settings": {
+      "sound": true,
+      "music": true,
+      "theme": "default"
+    }
+  }
+}

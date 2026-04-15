@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Games</title>
+
+<script>
+function applyTheme(){
+let theme = localStorage.getItem("theme") || "dark";
+let root = document.documentElement;
+
+if(theme==="dark"){
+root.style.setProperty("--bg","#000");
+root.style.setProperty("--panel","#0a0a0a");
+root.style.setProperty("--card","#1f2937");
+root.style.setProperty("--accent","#3b82f6");
+root.style.setProperty("--text","white");
+}
+if(theme==="light"){
+root.style.setProperty("--bg","#f3f4f6");
+root.style.setProperty("--panel","#fff");
+root.style.setProperty("--card","#e5e7eb");
+root.style.setProperty("--accent","#2563eb");
+root.style.setProperty("--text","#111");
+}
+if(theme==="pink"){
+root.style.setProperty("--bg","#1a001f");
+root.style.setProperty("--panel","#2a0a2f");
+root.style.setProperty("--card","#3b0f42");
+root.style.setProperty("--accent","#ff4fa3");
+root.style.setProperty("--text","white");
+}
+}
+applyTheme();
+
+window.addEventListener("storage",(e)=>{
+if(e.key==="theme") applyTheme();
+});
+</script>
+
+<style>
+body{margin:0;font-family:Arial;background:var(--bg);color:var(--text);}
+
+/* NAV */
+.nav{
+width:80%;
+margin:20px auto;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 30px;
+border-radius:30px;
+background:var(--panel);
+box-shadow:0 0 20px rgba(59,130,246,0.4);
+}
+.nav-center{display:flex;gap:30px;margin:auto;}
+.nav a{color:var(--text);text-decoration:none;padding:8px 14px;border-radius:10px;}
+.nav a:hover{background:var(--card);}
+.user-box{display:flex;align-items:center;gap:10px;}
+
+/* GRID */
+.container{
+width:90%;
+margin:auto;
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+gap:20px;
+}
+
+/* CARD */
+.card{
+background:var(--panel);
+border-radius:15px;
+padding:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.3);
+text-align:center;
+}
+.card img{
+width:100%;
+height:120px;
+object-fit:cover;
+border-radius:10px;
+background:var(--card);
+}
+button{
+margin-top:5px;
+padding:8px;
+border:none;
+border-radius:8px;
+background:var(--accent);
+color:white;
+cursor:pointer;
+}
+.delete{background:#ef4444;}
+.label{font-size:12px;opacity:0.7;display:block;margin-top:5px;}
+input{
+width:100%;
+margin-top:5px;
+padding:5px;
+border:none;
+border-radius:6px;
+background:var(--card);
+color:var(--text);
+}
+
+/* OVERLAY */
+#gameOverlay{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:black;
+z-index:9999;
+}
+#returnBtn{
+position:absolute;
+top:10px;
+left:10px;
+padding:10px;
+background:#3b82f6;
+color:white;
+border:none;
+border-radius:10px;
+cursor:pointer;
+z-index:10000;
+}
+#gameFrame{
+width:100%;
+height:100%;
+border:none;
+}
+
+/* TOKEN */
+.token{
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+font-size:30px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="nav">
+<div></div>
+<div class="nav-center">
+<a href="index.html">Home</a>
+<a href="games.html">Games</a>
+<a href="shop.html">Shop</a>
+<a href="settings.html">Settings</a>
+</div>
+<div class="user-box" id="userBox"></div>
+</div>
+
+<div class="container" id="grid"></div>
+
+<div id="gameOverlay">
+<button id="returnBtn">Return</button>
+<iframe id="gameFrame"></iframe>
+</div>
+
+<div class="token" id="tokens">🪙 0</div>
+
+<script src="music-engine.js"></script>
+<script src="user-helper.js"></script>
+
+<script>
+
+/* Initialize variables */
+let selectedIndex = 0;
+
+/* STORAGE */
+let games = JSON.parse(localStorage.getItem("games")) || new Array(50).fill(null);
+
+function saveGames(){
+localStorage.setItem("games", JSON.stringify(games));
+}
+
+function canPlayGames(){
+return !!currentUser;
+}
+
+/* RENDER */
+function render(){
+let grid = document.getElementById("grid");
+grid.innerHTML = "";
+
+games.forEach((g,i)=>{
+
+if(!g && currentUser!=="CritStrike") return;
+
+let div = document.createElement("div");
+div.className="card";
+
+if(g){
+let locked = !canPlayGames();
+div.innerHTML=`
+<img src="${g.thumb}">
+<h3>${g.name}</h3>
+<p>👥 ${g.players||0}</p>
+<button onclick="play(${i})" ${locked ? "disabled style='opacity:0.6'" : ""}>
+${locked ? "Login Required" : "Play"}
+</button>
+`;
+}else{
+div.innerHTML=`<h3>Empty Slot</h3>`;
+}
+
+if(currentUser==="CritStrike"){
+let admin = document.createElement("div");
+admin.innerHTML=`
+<input placeholder="Game Name" id="name${i}">
+<label class="label">Thumbnail Image</label>
+<input type="file" id="thumb${i}">
+<label class="label">Game Folder</label>
+<input type="file" id="files${i}" webkitdirectory multiple>
+<button onclick="saveSlot(${i})">Save Slot</button>
+<button class="delete" onclick="deleteSlot(${i})">Delete Game</button>
+`;
+div.appendChild(admin);
+}
+
+grid.appendChild(div);
+});
+}
+
+/* FIXED SAVE */
+function saveSlot(i){
+
+let name = document.getElementById("name"+i).value;
+let thumbFile = document.getElementById("thumb"+i).files[0];
+let files = document.getElementById("files"+i).files;
+
+if(!thumbFile || files.length===0){
+alert("Upload thumbnail + folder");
+return;
+}
+
+let thumbReader = new FileReader();
+
+thumbReader.onload = function(e){
+
+let gameFiles = {};
+let loaded = 0;
+let total = files.length;
+
+for(let f of files){
+
+let reader = new FileReader();
+
+reader.onload = function(ev){
+gameFiles[f.webkitRelativePath] = ev.target.result;
+loaded++;
+if(loaded===total) finish();
+};
+
+reader.onerror = function(){
+loaded++;
+if(loaded===total) finish();
+};
+
+reader.readAsDataURL(f);
+}
+
+function finish(){
+games[i]={
+name:name || "Untitled Game",
+players:0,
+thumb:e.target.result,
+files:gameFiles
+};
+saveGames();
+render();
+}
+
+};
+
+thumbReader.readAsDataURL(thumbFile);
+}
+
+/* DELETE */
+function deleteSlot(i){
+games[i]=null;
+saveGames();
+render();
+}
+
+/* PLAY */
+function play(i){
+let g = games[i];
+if(!g) return;
+
+if(!canPlayGames()){
+alert("Login required");
+window.location.href="login.html";
+return;
+}
+
+g.players=(g.players||0)+1;
+saveGames();
+render();
+
+let mainKey = Object.keys(g.files).find(p => p.endsWith("index.html"));
+let main = g.files[mainKey];
+
+if(!main){
+alert("index.html not found");
+return;
+}
+
+document.getElementById("gameFrame").src = main;
+document.getElementById("gameOverlay").style.display="block";
+}
+
+/* AUTO PLAY */
+function autoPlayFromQuery(){
+let params = new URLSearchParams(window.location.search);
+let index = params.get("play");
+if(index!==null){
+let i=parseInt(index);
+if(games[i]) play(i);
+}
+}
+
+/* RETURN */
+document.getElementById("returnBtn").onclick = function(){
+document.getElementById("gameOverlay").style.display="none";
+document.getElementById("gameFrame").src="";
+};
+
+/* INIT */
+render();
+autoPlayFromQuery();
+// User display handled by user-helper.js
+
+/* MUSIC */
+let globalAudio;
+function initGlobalMusic(){
+if(window.globalAudio) return;
+
+globalAudio = new Audio();
+globalAudio.loop=true;
+
+let playlist = JSON.parse(localStorage.getItem("playlist"))||[];
+let track = parseInt(localStorage.getItem("track"))||0;
+
+if(playlist.length){
+globalAudio.src = playlist[track].data || playlist[track];
+globalAudio.currentTime = parseFloat(localStorage.getItem("musicTime"))||0;
+}
+
+if(localStorage.getItem("musicPlaying")==="true"){
+globalAudio.play().catch(()=>{});
+}
+
+document.addEventListener("click",()=>{
+globalAudio.play().catch(()=>{});
+},{once:true});
+
+window.globalAudio=globalAudio;
+
+setInterval(()=>{
+localStorage.setItem("musicTime", globalAudio.currentTime);
+},500);
+}
+initGlobalMusic();
+
+/* TOKEN RECEIVER */
+window.addEventListener("message", function(e){
+
+if(!e.data || e.data.type!=="clickSpeedGame") return;
+if(!currentUser) return;
+
+let current = parseInt(localStorage.getItem(currentUser+"_tokens"))||0;
+
+if(e.data.action==="earned"){
+let earned = parseInt(e.data.earned)||0;
+if(earned>0){
+current+=earned;
+localStorage.setItem(currentUser+"_tokens",current);
+document.getElementById("tokens").innerText="🪙 "+current;
+localStorage.setItem("tokenSync", Date.now());
+}
+}
+
+});
+</script>
+
+</body>
+</html>

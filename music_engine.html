@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Music Engine</title>
+</head>
+<body>
+
+<script>
+
+/* =========================
+   AUDIO CORE
+========================= */
+
+let audio = new Audio();
+audio.loop = false;
+
+/* =========================
+   PLAYLIST
+========================= */
+
+function getPlaylist(){
+return JSON.parse(localStorage.getItem("playlist")) || [];
+}
+
+/* =========================
+   CURRENT STATE LOAD
+========================= */
+
+function loadState(){
+
+let playlist = getPlaylist();
+if(!playlist.length) return;
+
+let track = parseInt(localStorage.getItem("track")) || 0;
+let time = parseFloat(localStorage.getItem("time")) || 0;
+let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
+
+let song = playlist[track];
+
+audio.volume = volume;
+
+if(typeof song === "string"){
+audio.src = song;
+}else{
+audio.src = song.data;
+}
+
+audio.currentTime = time;
+
+if(localStorage.getItem("musicPlaying") === "true"){
+audio.play().catch(()=>{});
+}
+
+}
+
+loadState();
+
+/* =========================
+   SAVE PROGRESS
+========================= */
+
+setInterval(()=>{
+
+if(!audio.src) return;
+
+localStorage.setItem("time", audio.currentTime);
+localStorage.setItem("volume", audio.volume);
+
+},1000);
+
+/* =========================
+   APPLY TRACK CHANGE
+========================= */
+
+function syncMusic(){
+
+let playlist = getPlaylist();
+if(!playlist.length) return;
+
+let track = parseInt(localStorage.getItem("track")) || 0;
+let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
+
+let song = playlist[track];
+
+audio.volume = volume;
+
+if(typeof song === "string"){
+audio.src = song;
+}else{
+audio.src = song.data;
+}
+
+audio.play().catch(()=>{});
+
+}
+
+/* =========================
+   PLAY TRIGGER WATCHER
+========================= */
+
+setInterval(()=>{
+
+if(localStorage.getItem("musicCommand")){
+syncMusic();
+localStorage.removeItem("musicCommand");
+}
+
+},300);
+
+/* =========================
+   AUTO NEXT SONG
+========================= */
+
+audio.addEventListener("ended",()=>{
+
+let playlist = getPlaylist();
+if(!playlist.length) return;
+
+let next = (parseInt(localStorage.getItem("track")) || 0) + 1;
+
+if(next >= playlist.length){
+next = 0;
+}
+
+localStorage.setItem("track", next);
+localStorage.setItem("musicCommand", Date.now());
+
+syncMusic();
+
+});
+
+/* =========================
+   INITIAL FIX
+========================= */
+
+if(localStorage.getItem("musicPlaying") === "true"){
+loadState();
+}
+
+</script>
+
+</body>
+</html>

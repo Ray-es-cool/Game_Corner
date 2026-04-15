@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Settings</title>
+
+<script>
+function applyTheme(){
+
+let theme = localStorage.getItem("theme") || "dark";
+let root = document.documentElement;
+
+/* DARK */
+if(theme === "dark"){
+root.style.setProperty("--bg", "#000");
+root.style.setProperty("--panel", "#0a0a0a");
+root.style.setProperty("--card", "#1f2937");
+root.style.setProperty("--accent", "#3b82f6");
+root.style.setProperty("--text", "white");
+}
+
+/* LIGHT */
+if(theme === "light"){
+root.style.setProperty("--bg", "#f3f4f6");
+root.style.setProperty("--panel", "#ffffff");
+root.style.setProperty("--card", "#e5e7eb");
+root.style.setProperty("--accent", "#2563eb");
+root.style.setProperty("--text", "#111");
+}
+
+/* PINK */
+if(theme === "pink"){
+root.style.setProperty("--bg", "#1a001f");
+root.style.setProperty("--panel", "#2a0a2f");
+root.style.setProperty("--card", "#3b0f42");
+root.style.setProperty("--accent", "#ff4fa3");
+root.style.setProperty("--text", "white");
+}
+
+}
+
+applyTheme();
+
+window.addEventListener("storage",(e)=>{
+if(e.key === "theme") applyTheme();
+});
+</script>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:var(--bg);
+color:var(--text);
+}
+
+/* NAV */
+.nav{
+width:80%;
+margin:20px auto;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:15px 30px;
+border-radius:30px;
+background:var(--panel);
+box-shadow:0 0 20px rgba(59,130,246,0.4);
+}
+
+.nav-left{ width:120px; }
+
+.nav-center{
+display:flex;
+gap:40px;
+justify-content:center;
+flex:1;
+}
+
+.nav-right{
+width:120px;
+display:flex;
+justify-content:flex-end;
+}
+
+.nav a{
+color:var(--text);
+text-decoration:none;
+font-size:18px;
+padding:8px 14px;
+border-radius:10px;
+}
+
+.nav a:hover{
+background:var(--card);
+}
+
+/* USER */
+.user-box{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.user-box img{
+width:40px;
+height:40px;
+border-radius:50%;
+}
+
+/* MAIN */
+.main{
+width:80%;
+margin:auto;
+margin-top:40px;
+display:flex;
+justify-content:center;
+}
+
+.settings-box{
+width:500px;
+padding:30px;
+border-radius:25px;
+background:var(--panel);
+box-shadow:0 0 25px rgba(59,130,246,0.4);
+text-align:center;
+}
+
+.setting-btn{
+display:block;
+width:100%;
+margin:15px 0;
+padding:15px;
+font-size:18px;
+border:none;
+border-radius:15px;
+background:var(--card);
+color:var(--text);
+cursor:pointer;
+}
+
+input[type="range"]{
+width:100%;
+margin-top:15px;
+}
+
+.token{
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+font-size:32px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- NAV -->
+<div class="nav">
+
+<div class="nav-left"></div>
+
+<div class="nav-center">
+<a href="index.html">Home</a>
+<a href="Games.html">Games</a>
+<a href="DailyRewards.html">Daily Rewards</a>
+<a href="shop.html">Shop</a>
+<a href="settings.html">Settings</a>
+<a href="login.html">Login</a>
+</div>
+
+<div class="nav-right">
+<div class="user-box" id="userBox"></div>
+</div>
+
+</div>
+
+<!-- MAIN -->
+<div class="main">
+<div class="settings-box">
+
+<h1>Settings</h1>
+
+<button class="setting-btn" onclick="goMusic()">Music</button>
+<button class="setting-btn" onclick="goTones()">Colour / Tones</button>
+
+<br><br>
+
+<h3>Music Volume</h3>
+<input type="range" min="0" max="1" step="0.01" id="volume">
+
+</div>
+</div>
+
+<div class="token" id="tokens">🪙 0</div>
+
+<!-- 🎧 MUSIC ENGINE -->
+<script src="music-engine.js"></script>
+
+<script>
+
+/* =========================
+   FIXED USER SYSTEM
+========================= */
+
+function getUsers(){
+return JSON.parse(localStorage.getItem("users")) || {};
+}
+
+let currentUser = localStorage.getItem("currentUser");
+
+/* USER UI */
+function loadUser(){
+
+let users = getUsers();
+let box=document.getElementById("userBox");
+
+if(currentUser && users[currentUser]){
+box.innerHTML=`<img src="${users[currentUser].pfp}">${currentUser}`;
+}
+
+}
+
+/* TOKENS */
+function loadTokens(){
+if(!currentUser) return;
+let t = localStorage.getItem(currentUser+"_tokens") || 0;
+document.getElementById("tokens").innerText="🪙 "+t;
+}
+
+/* NAV */
+function goMusic(){
+window.location.href = "music.html";
+}
+
+function goTones(){
+window.location.href = "Tones.html";
+}
+
+/* VOLUME */
+const slider = document.getElementById("volume");
+
+function syncVolume(){
+
+let v = localStorage.getItem("volume");
+
+if(v === null) v = 0.5;
+
+slider.value = v;
+
+if(window.globalAudio){
+window.globalAudio.volume = parseFloat(v);
+}
+
+}
+
+slider.addEventListener("input",(e)=>{
+
+let v = parseFloat(e.target.value);
+
+localStorage.setItem("volume", v);
+
+if(window.globalAudio){
+window.globalAudio.volume = v;
+}
+
+});
+
+window.addEventListener("storage",(e)=>{
+if(e.key === "volume"){
+syncVolume();
+}
+});
+
+/* INIT */
+loadUser();
+loadTokens();
+syncVolume();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;">
+
+<audio id="audio" controls loop style="position:fixed;bottom:10px;left:10px;"></audio>
+
+<script>
+
+let audio=document.getElementById("audio");
+
+const defaultPlaylist=[
+"music/confess_your_love.mp3",
+"music/montagem_miau.mp3",
+"music/batidao.mp3",
+"music/montagem_rugada.mp3"
+];
+
+/* GET PLAYLIST */
+function getPlaylist(){
+let p=JSON.parse(localStorage.getItem("playlist"))||[];
+return p.length?p:defaultPlaylist;
+}
+
+/* LOAD SONG */
+function loadSong(i){
+let playlist=getPlaylist();
+if(!playlist[i]) return;
+
+if (!playlist[i]) return;
+
+let src = playlist[i].data || playlist[i];
+
+if (!src || typeof src !== "string") return;
+
+audio.pause();
+audio.src = src;
+
+let playPromise = audio.play();
+if (playPromise !== undefined) {
+playPromise.catch(err => {
+console.log("Audio blocked or invalid:", err);
+});
+}
+audio.play();
+
+localStorage.setItem("track",i);
+localStorage.setItem("musicPlaying","true");
+}
+
+/* MESSAGE CONTROL */
+window.addEventListener("message",(e)=>{
+
+if(e.data.type==="play"){
+loadSong(e.data.index);
+}
+
+if(e.data.type==="volume"){
+audio.volume=e.data.value;
+localStorage.setItem("volume",e.data.value);
+}
+});
+
+/* AUTO RESUME */
+let last=parseInt(localStorage.getItem("track"))||0;
+
+if(localStorage.getItem("musicPlaying")==="true"){
+setTimeout(()=>loadSong(last),300);
+}
+
+/* CLICK RESUME FIX */
+document.addEventListener("click",()=>{
+if(localStorage.getItem("musicPlaying")==="true"){
+audio.play();
+}
+});
+
+</script>
+
+</body>
+</html>

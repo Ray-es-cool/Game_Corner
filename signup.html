@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Signup</title>
+
+<!-- RESTORED SCRIPT -->
+<script src="music-engine.js"></script>
+
+<script>
+function applyTheme(){
+
+let theme = localStorage.getItem("theme") || "dark";
+let root = document.documentElement;
+
+if(theme === "dark"){
+root.style.setProperty("--bg", "#000");
+root.style.setProperty("--panel", "#0a0a0a");
+root.style.setProperty("--card", "#1f2937");
+root.style.setProperty("--accent", "#3b82f6");
+root.style.setProperty("--text", "white");
+}
+
+if(theme === "light"){
+root.style.setProperty("--bg", "#f3f4f6");
+root.style.setProperty("--panel", "#ffffff");
+root.style.setProperty("--card", "#e5e7eb");
+root.style.setProperty("--accent", "#2563eb");
+root.style.setProperty("--text", "#111");
+}
+
+if(theme === "pink"){
+root.style.setProperty("--bg", "#1a001f");
+root.style.setProperty("--panel", "#2a0a2f");
+root.style.setProperty("--card", "#3b0f42");
+root.style.setProperty("--accent", "#ff4fa3");
+root.style.setProperty("--text", "white");
+}
+
+}
+applyTheme();
+
+window.addEventListener("storage",(e)=>{
+if(e.key === "theme") applyTheme();
+});
+</script>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  justify-content:center;
+}
+
+.container{
+  width:100%;
+  max-width:1200px;
+}
+
+.nav{
+  width:80%;
+  margin:20px auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:15px 30px;
+  border-radius:30px;
+  background:var(--panel);
+  box-shadow:0 0 20px rgba(59,130,246,0.4);
+}
+
+.nav-center{
+  display:flex;
+  gap:40px;
+  justify-content:center;
+  flex:1;
+}
+
+.nav a{
+  color:var(--text);
+  text-decoration:none;
+  font-size:18px;
+  padding:8px 14px;
+  border-radius:10px;
+}
+
+.nav a:hover{
+  background:var(--card);
+}
+
+.main{
+  text-align:center;
+  margin-top:80px;
+}
+
+.box{
+  display:inline-block;
+  padding:30px;
+  background:var(--panel);
+  border-radius:20px;
+  box-shadow:0 0 20px rgba(59,130,246,0.3);
+  min-width:320px;
+}
+
+input{
+  width:100%;
+  margin-top:10px;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:var(--card);
+  color:var(--text);
+  font-size:16px;
+}
+
+button{
+  margin-top:15px;
+  padding:14px;
+  width:100%;
+  border:none;
+  border-radius:12px;
+  background:var(--accent);
+  color:white;
+  cursor:pointer;
+}
+
+/* FILE INPUT FIXED */
+input[type="file"]{
+  display: block;
+  margin-top:15px;
+  padding:10px;
+  width:100%;
+  background: var(--card);
+  border: 2px solid var(--accent);
+  border-radius:10px;
+  cursor:pointer;
+  color: var(--text);
+  font-size:16px;
+  position: relative;
+  z-index: 10;
+}
+
+/* LOGOUT BUTTON */
+.logout-btn{
+  background:#ef4444;
+  margin-top:10px;
+}
+
+.token{
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:32px;
+}
+
+.file-label{
+  margin-top:15px;
+  display:block;
+  text-align:left;
+  font-size:14px;
+  opacity:0.9;
+}
+
+.file-help{
+  margin:8px 0 0;
+  font-size:13px;
+  opacity:0.8;
+  text-align:left;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="nav">
+<div></div>
+
+<div class="nav-center">
+<a href="index.html">Home</a>
+<a href="music.html">Music</a>
+<a href="DailyRewards.html">Daily Rewards</a>
+<a href="settings.html">Settings</a>
+<a href="tones.html">Tones</a>
+<a href="login.html">Login</a>
+<a herf="Games.html">Games</a>
+<a herf="shop.html">Shop</a>
+</div>
+
+<div></div>
+</div>
+
+<div class="main">
+
+<div class="box">
+
+<h2>Signup</h2>
+
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+
+<input id="pfp" placeholder="Profile Picture URL (optional)">
+
+<label class="file-label" for="pfpFile">Or upload profile picture</label>
+<input type="file" id="pfpFile" accept="image/*">
+<p class="file-help">Click "Choose File" to upload an image.</p>
+
+<p id="fileName">No file selected</p>
+
+<button onclick="signup()">Create Account</button>
+
+<button id="logoutBtn" class="logout-btn" onclick="logout()" style="display:none;">
+Logout
+</button>
+
+<p id="msg"></p>
+
+</div>
+</div>
+
+</div>
+
+<div class="token">🪙 0</div>
+
+<script>
+/* SHOW FILE NAME */
+document.getElementById("pfpFile").addEventListener("change", function(){
+  let file = this.files[0];
+  if(file){
+    document.getElementById("fileName").innerText = "Selected: " + file.name;
+  } else {
+    document.getElementById("fileName").innerText = "No file selected";
+  }
+});
+
+/* SHOW LOGOUT */
+let currentUser = localStorage.getItem("currentUser");
+if(currentUser){
+  document.getElementById("logoutBtn").style.display = "block";
+}
+
+/* LOGOUT */
+function logout(){
+  localStorage.removeItem("currentUser");
+  location.reload();
+}
+
+/* USER SYSTEM - MOVED TO SERVER (See user-system.js) */
+/* Profile picture handling */
+  let reader = new FileReader();
+  reader.onload = function(e){
+    let img = new Image();
+    img.onload = function(){
+      let maxSize = 128;
+      let scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      let w = Math.max(1, Math.round(img.width * scale));
+      let h = Math.max(1, Math.round(img.height * scale));
+
+      let canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+
+      let ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Keep avatar small so localStorage does not fail.
+      done(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* SIGNUP */
+function signup(){
+
+  let u = document.getElementById("username").value;
+  let p = document.getElementById("password").value;
+  let urlPic = document.getElementById("pfp").value;
+  let file = document.getElementById("pfpFile").files[0];
+
+  if(!u || !p){
+    document.getElementById("msg").innerText = "Fill everything";
+    return;
+  }
+
+  if(file){
+    fileToAvatarDataUrl(file, function(result){
+      finishSignup(u, p, result);
+    });
+  } else {
+    finishSignup(u, p, urlPic || "https://via.placeholder.com/100");
+  }
+
+}
+
+async function finishSignup(username, password, pfp){
+
+  try {
+    const response = await fetch("http://localhost:3000/api/users/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password,
+        pfp: pfp
+      })
+    });
+
+    if(!response.ok){
+      document.getElementById("msg").innerText = "Server error: " + response.status;
+      return;
+    }
+
+    const result = await response.json();
+
+    if(result.success){
+      localStorage.setItem("currentUser", username);
+      localStorage.setItem(username + "_tokens", 0);
+      location.href = "index.html";
+    } else {
+      document.getElementById("msg").innerText = result.error || "Signup failed";
+    }
+  } catch(err){
+    document.getElementById("msg").innerText = "Connection error. Make sure server is running on port 3000.";
+    console.error("Signup error:", err);
+  }
+}
+</script>
+
+</body>
+</html>

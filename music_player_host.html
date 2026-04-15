@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;">
+<audio id="audio" controls autoplay></audio>
+
+<script>
+let audio = document.getElementById("audio");
+
+function getPlaylist(){
+return JSON.parse(localStorage.getItem("playlist")) || [];
+}
+
+function playSong(i){
+let p = getPlaylist();
+if(!p[i]) return;
+
+audio.src = p[i].data;
+audio.play();
+
+localStorage.setItem("track", i);
+localStorage.setItem("musicPlaying", "true");
+}
+
+/* CONTROL FROM ANY PAGE */
+window.addEventListener("message", (e)=>{
+if(e.data.type === "play"){
+playSong(e.data.index);
+}
+
+if(e.data.type === "volume"){
+audio.volume = e.data.value;
+}
+});
+
+/* AUTO RESUME */
+let last = parseInt(localStorage.getItem("track")) || 0;
+
+if(localStorage.getItem("musicPlaying") === "true"){
+setTimeout(()=>playSong(last), 300);
+}
+
+</script>
+</body>
+</html>
