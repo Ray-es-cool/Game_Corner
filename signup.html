@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>Signup</title>
 
-<!-- RESTORED SCRIPT -->
 <script src="music-engine.js"></script>
 
 <script>
@@ -55,10 +54,7 @@ body{
   justify-content:center;
 }
 
-.container{
-  width:100%;
-  max-width:1200px;
-}
+.container{ width:100%; max-width:1200px; }
 
 .nav{
   width:80%;
@@ -87,14 +83,9 @@ body{
   border-radius:10px;
 }
 
-.nav a:hover{
-  background:var(--card);
-}
+.nav a:hover{ background:var(--card); }
 
-.main{
-  text-align:center;
-  margin-top:80px;
-}
+.main{ text-align:center; margin-top:80px; }
 
 .box{
   display:inline-block;
@@ -113,7 +104,6 @@ input{
   border-radius:10px;
   background:var(--card);
   color:var(--text);
-  font-size:16px;
 }
 
 button{
@@ -127,27 +117,19 @@ button{
   cursor:pointer;
 }
 
-/* FILE INPUT FIXED */
 input[type="file"]{
-  display: block;
+  display:block;
   margin-top:15px;
   padding:10px;
   width:100%;
-  background: var(--card);
-  border: 2px solid var(--accent);
+  background:var(--card);
+  border:2px solid var(--accent);
   border-radius:10px;
   cursor:pointer;
-  color: var(--text);
-  font-size:16px;
-  position: relative;
-  z-index: 10;
+  color:var(--text);
 }
 
-/* LOGOUT BUTTON */
-.logout-btn{
-  background:#ef4444;
-  margin-top:10px;
-}
+.logout-btn{ background:#ef4444; margin-top:10px; }
 
 .token{
   position:fixed;
@@ -157,20 +139,8 @@ input[type="file"]{
   font-size:32px;
 }
 
-.file-label{
-  margin-top:15px;
-  display:block;
-  text-align:left;
-  font-size:14px;
-  opacity:0.9;
-}
-
-.file-help{
-  margin:8px 0 0;
-  font-size:13px;
-  opacity:0.8;
-  text-align:left;
-}
+.file-label{ margin-top:15px; display:block; text-align:left; }
+.file-help{ font-size:13px; opacity:0.8; }
 </style>
 </head>
 
@@ -188,8 +158,8 @@ input[type="file"]{
 <a href="settings.html">Settings</a>
 <a href="tones.html">Tones</a>
 <a href="login.html">Login</a>
-<a herf="Games.html">Games</a>
-<a herf="shop.html">Shop</a>
+<a href="Games.html">Games</a>
+<a href="shop.html">Shop</a>
 </div>
 
 <div></div>
@@ -203,20 +173,16 @@ input[type="file"]{
 
 <input id="username" placeholder="Username">
 <input id="password" type="password" placeholder="Password">
-
 <input id="pfp" placeholder="Profile Picture URL (optional)">
 
-<label class="file-label" for="pfpFile">Or upload profile picture</label>
+<label class="file-label">Or upload profile picture</label>
 <input type="file" id="pfpFile" accept="image/*">
 <p class="file-help">Click "Choose File" to upload an image.</p>
 
 <p id="fileName">No file selected</p>
 
 <button onclick="signup()">Create Account</button>
-
-<button id="logoutBtn" class="logout-btn" onclick="logout()" style="display:none;">
-Logout
-</button>
+<button id="logoutBtn" class="logout-btn" onclick="logout()" style="display:none;">Logout</button>
 
 <p id="msg"></p>
 
@@ -228,7 +194,6 @@ Logout
 <div class="token">🪙 0</div>
 
 <script>
-/* SHOW FILE NAME */
 document.getElementById("pfpFile").addEventListener("change", function(){
   let file = this.files[0];
   if(file){
@@ -238,28 +203,26 @@ document.getElementById("pfpFile").addEventListener("change", function(){
   }
 });
 
-/* SHOW LOGOUT */
 let currentUser = localStorage.getItem("currentUser");
 if(currentUser){
   document.getElementById("logoutBtn").style.display = "block";
 }
 
-/* LOGOUT */
 function logout(){
   localStorage.removeItem("currentUser");
   location.reload();
 }
 
-/* USER SYSTEM - MOVED TO SERVER (See user-system.js) */
-/* Profile picture handling */
+/* FIXED FILE TO BASE64 */
+function fileToAvatarDataUrl(file, done){
   let reader = new FileReader();
   reader.onload = function(e){
     let img = new Image();
     img.onload = function(){
       let maxSize = 128;
       let scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-      let w = Math.max(1, Math.round(img.width * scale));
-      let h = Math.max(1, Math.round(img.height * scale));
+      let w = Math.round(img.width * scale);
+      let h = Math.round(img.height * scale);
 
       let canvas = document.createElement("canvas");
       canvas.width = w;
@@ -268,7 +231,6 @@ function logout(){
       let ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, w, h);
 
-      // Keep avatar small so localStorage does not fail.
       done(canvas.toDataURL("image/jpeg", 0.8));
     };
     img.src = e.target.result;
@@ -276,7 +238,6 @@ function logout(){
   reader.readAsDataURL(file);
 }
 
-/* SIGNUP */
 function signup(){
 
   let u = document.getElementById("username").value;
@@ -296,28 +257,23 @@ function signup(){
   } else {
     finishSignup(u, p, urlPic || "https://via.placeholder.com/100");
   }
-
 }
 
+/* FIXED: NO LOCALHOST */
 async function finishSignup(username, password, pfp){
 
   try {
-    const response = await fetch("http://localhost:3000/api/users/signup", {
+    const response = await fetch("/api/users/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        username: username,
-        password: password,
-        pfp: pfp
+        username,
+        password,
+        pfp
       })
     });
-
-    if(!response.ok){
-      document.getElementById("msg").innerText = "Server error: " + response.status;
-      return;
-    }
 
     const result = await response.json();
 
@@ -328,9 +284,10 @@ async function finishSignup(username, password, pfp){
     } else {
       document.getElementById("msg").innerText = result.error || "Signup failed";
     }
+
   } catch(err){
-    document.getElementById("msg").innerText = "Connection error. Make sure server is running on port 3000.";
-    console.error("Signup error:", err);
+    document.getElementById("msg").innerText = "Server connection failed.";
+    console.error(err);
   }
 }
 </script>

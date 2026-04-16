@@ -10,7 +10,6 @@ function applyTheme(){
 let theme = localStorage.getItem("theme") || "dark";
 let root = document.documentElement;
 
-/* DARK */
 if(theme === "dark"){
 root.style.setProperty("--bg", "#000");
 root.style.setProperty("--panel", "#0a0a0a");
@@ -19,7 +18,6 @@ root.style.setProperty("--accent", "#3b82f6");
 root.style.setProperty("--text", "white");
 }
 
-/* LIGHT */
 if(theme === "light"){
 root.style.setProperty("--bg", "#f3f4f6");
 root.style.setProperty("--panel", "#ffffff");
@@ -28,7 +26,6 @@ root.style.setProperty("--accent", "#2563eb");
 root.style.setProperty("--text", "#111");
 }
 
-/* PINK */
 if(theme === "pink"){
 root.style.setProperty("--bg", "#1a001f");
 root.style.setProperty("--panel", "#2a0a2f");
@@ -56,12 +53,8 @@ display:flex;
 justify-content:center;
 }
 
-.container{
-width:100%;
-max-width:1200px;
-}
+.container{ width:100%; max-width:1200px; }
 
-/* NAV */
 .nav{
 display:flex;
 justify-content:space-between;
@@ -73,21 +66,11 @@ background:var(--panel);
 box-shadow:0 0 15px rgba(59,130,246,0.4);
 }
 
-.nav-left{
-width:120px;
-}
-
 .nav-center{
 display:flex;
 gap:20px;
 justify-content:center;
 flex:1;
-}
-
-.nav-right{
-width:120px;
-display:flex;
-justify-content:flex-end;
 }
 
 .nav a{
@@ -97,24 +80,14 @@ padding:10px 14px;
 border-radius:10px;
 }
 
-.nav a:hover{
-background:var(--card);
-}
+.nav a:hover{ background:var(--card); }
 
-/* USER */
 .user-box{
 display:flex;
 align-items:center;
 gap:10px;
 }
 
-.user-box img{
-width:40px;
-height:40px;
-border-radius:50%;
-}
-
-/* MAIN */
 .main{
 text-align:center;
 margin-top:80px;
@@ -129,7 +102,6 @@ box-shadow:0 0 20px rgba(59,130,246,0.3);
 width:320px;
 }
 
-/* INPUTS */
 input{
 width:100%;
 margin-top:10px;
@@ -140,7 +112,6 @@ background:var(--card);
 color:var(--text);
 }
 
-/* BUTTON */
 button{
 width:100%;
 margin-top:15px;
@@ -177,9 +148,7 @@ font-size:36px;
 
 <div class="container">
 
-<!-- NAV -->
 <div class="nav">
-
 <div class="nav-left"></div>
 
 <div class="nav-center">
@@ -194,10 +163,8 @@ font-size:36px;
 <div class="nav-right">
 <div class="user-box" id="userBox"></div>
 </div>
-
 </div>
 
-<!-- LOGIN BOX -->
 <div class="main">
 <div class="box">
 
@@ -212,7 +179,6 @@ font-size:36px;
 Don't have an account? Register
 </div>
 
-<!-- ✅ LOGOUT BUTTON -->
 <button id="logoutBtn" class="logout-btn" style="display:none;" onclick="logout()">Logout</button>
 
 <p id="msg"></p>
@@ -224,21 +190,12 @@ Don't have an account? Register
 
 <div class="token" id="tokens">🪙 0</div>
 
-<!-- 🎧 MUSIC ENGINE -->
 <script src="music-engine.js"></script>
 <script src="user-helper.js"></script>
 
 <script>
 
-/* =========================
-   STATE
-========================= */
-
 let isLogin = true;
-
-/* =========================
-   SWITCH MODE
-========================= */
 
 function toggleMode(){
 
@@ -257,15 +214,10 @@ isLogin
 
 }
 
-/* =========================
-   SUBMIT
-========================= */
-
 async function submit(){
 
 let user = document.getElementById("username").value;
 let pass = document.getElementById("password").value;
-
 let msg = document.getElementById("msg");
 
 if(!user || !pass){
@@ -277,21 +229,11 @@ return;
 if(isLogin){
 
 try {
-const response = await fetch("http://localhost:3000/api/users/login", {
+const response = await fetch("/api/users/login", {
 method: "POST",
-headers: {
-"Content-Type": "application/json"
-},
-body: JSON.stringify({
-username: user,
-password: pass
-})
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ username: user, password: pass })
 });
-
-if(!response.ok){
-msg.innerText = "Server error: " + response.status;
-return;
-}
 
 const result = await response.json();
 
@@ -302,9 +244,10 @@ location.reload();
 } else {
 msg.innerText = result.error || "Invalid login";
 }
+
 } catch(err){
-msg.innerText = "Connection error. Make sure server is running on port 3000.";
-console.error("Login error:", err);
+msg.innerText = "Connection error.";
+console.error(err);
 }
 
 }
@@ -313,22 +256,15 @@ console.error("Login error:", err);
 else{
 
 try {
-const response = await fetch("http://localhost:3000/api/users/signup", {
+const response = await fetch("/api/users/signup", {
 method: "POST",
-headers: {
-"Content-Type": "application/json"
-},
+headers: { "Content-Type": "application/json" },
 body: JSON.stringify({
 username: user,
 password: pass,
 pfp: "https://via.placeholder.com/40"
 })
 });
-
-if(!response.ok){
-msg.innerText = "Server error: " + response.status;
-return;
-}
 
 const result = await response.json();
 
@@ -338,21 +274,15 @@ toggleMode();
 } else {
 msg.innerText = result.error || "Registration failed";
 }
+
 } catch(err){
-msg.innerText = "Connection error. Make sure server is running on port 3000.";
-console.error("Signup error:", err);
+msg.innerText = "Connection error.";
+console.error(err);
 }
 
 }
 
 }
-
-/* =========================
-   INIT
-========================= */
-
-// User display is now handled by user-helper.js
-
 
 </script>
 
