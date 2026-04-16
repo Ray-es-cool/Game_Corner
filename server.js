@@ -2,7 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const path = require("path");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs"); // ✅ FIXED
 
 const app = express();
 
@@ -27,8 +27,8 @@ app.use((req, res, next) => {
   next();
 });
 
-const DATA_FILE = "./data.json";
-const USERS_FILE = "./users.json";
+const DATA_FILE = path.join(__dirname, "data.json");
+const USERS_FILE = path.join(__dirname, "users.json");
 
 /* INIT SITE DATA */
 function getData() {
