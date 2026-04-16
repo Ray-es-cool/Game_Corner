@@ -2,13 +2,13 @@ const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const path = require("path");
-const bcrypt = require("bcryptjs"); // ✅ FIXED
+const bcrypt = require("bcryptjs");
 
 const app = express();
 
 app.use(express.json());
 
-// ===== ADDED: GLOBAL CORS CONFIG (SAFE DEFAULT) =====
+// ===== CORS =====
 const ALLOWED_ORIGINS = "*";
 
 app.use(cors({
@@ -17,10 +17,10 @@ app.use(cors({
   allowedHeaders: ["Content-Type"]
 }));
 
-// Serve static files (HTML, CSS, JS, images)
+// STATIC FILES
 app.use(express.static(path.join(__dirname)));
 
-// ===== ADDED: BASIC SECURITY HEADERS =====
+// SECURITY HEADERS
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -30,7 +30,7 @@ app.use((req, res, next) => {
 const DATA_FILE = path.join(__dirname, "data.json");
 const USERS_FILE = path.join(__dirname, "users.json");
 
-/* INIT SITE DATA */
+/* INIT DATA */
 function getData() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({
@@ -43,7 +43,7 @@ function getData() {
   return JSON.parse(fs.readFileSync(DATA_FILE));
 }
 
-/* INIT USERS DATABASE */
+/* INIT USERS */
 function getUsers() {
   if (!fs.existsSync(USERS_FILE)) {
     fs.writeFileSync(USERS_FILE, JSON.stringify({}));
@@ -51,26 +51,16 @@ function getUsers() {
   return JSON.parse(fs.readFileSync(USERS_FILE));
 }
 
-/* SAFE WRITE SYSTEM */
-let writing = false;
-
-function safeWrite(file, data) {
-  if (writing) return;
-  writing = true;
-  fs.writeFileSync(file, data);
-  writing = false;
-}
-
+/* SAFE SAVE */
 function saveUsers(users) {
-  safeWrite(USERS_FILE, JSON.stringify(users, null, 2));
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-/* GET SITE DATA */
+/* SITE API */
 app.get("/api/site", (req, res) => {
   res.json(getData());
 });
 
-/* UPDATE SITE DATA (ADMIN ONLY) */
 app.post("/api/site", (req, res) => {
   const { user, title, logo, updates, slogan } = req.body;
 
@@ -89,9 +79,7 @@ app.post("/api/site", (req, res) => {
   res.json({ success: true });
 });
 
-/* =========================
-   SIGNUP (UPGRADED SAFE)
-========================= */
+/* SIGNUP */
 app.post("/api/users/signup", async (req, res) => {
   const { username, password, pfp } = req.body;
 
@@ -105,10 +93,8 @@ app.post("/api/users/signup", async (req, res) => {
     return res.status(400).json({ success: false, error: "Username already taken" });
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-
   users[username] = {
-    pass: hashedPassword,
+    pass: await bcrypt.hash(password, 10),
     pfp: pfp || "https://via.placeholder.com/100",
     tokens: 0,
     createdAt: new Date().toISOString(),
@@ -120,9 +106,7 @@ app.post("/api/users/signup", async (req, res) => {
   res.json({ success: true, username });
 });
 
-/* =========================
-   LOGIN (UPGRADED SAFE)
-========================= */
+/* LOGIN */
 app.post("/api/users/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -151,12 +135,10 @@ app.post("/api/users/login", async (req, res) => {
   });
 });
 
-/* GET USER DATA */
+/* GET USER */
 app.get("/api/users/:username", (req, res) => {
-  const { username } = req.params;
-
   const users = getUsers();
-  const user = users[username];
+  const user = users[req.params.username];
 
   if (!user) {
     return res.status(404).json({ success: false, error: "User not found" });
@@ -164,24 +146,23 @@ app.get("/api/users/:username", (req, res) => {
 
   res.json({
     success: true,
-    username,
+    username: req.params.username,
     pfp: user.pfp,
     tokens: user.tokens,
     data: user.data
   });
 });
 
-/* UPDATE USER DATA */
+/* UPDATE USER */
 app.post("/api/users/:username", (req, res) => {
-  const { username } = req.params;
-  const { pfp, tokens, data } = req.body;
-
   const users = getUsers();
-  const user = users[username];
+  const user = users[req.params.username];
 
   if (!user) {
     return res.status(404).json({ success: false, error: "User not found" });
   }
+
+  const { pfp, tokens, data } = req.body;
 
   if (pfp !== undefined) user.pfp = pfp;
   if (tokens !== undefined) user.tokens = tokens;
@@ -192,7 +173,26 @@ app.post("/api/users/:username", (req, res) => {
   res.json({ success: true });
 });
 
-/* GLOBAL SERVER START */
+/* =========================
+   ADMIN FIX ROUTE (OPTIONAL)
+========================= */
+app.post("/api/fix-admin", async (req, res) => {
+  const users = getUsers();
+
+  users["CritStrike"] = {
+    pass: await bcrypt.hash("c@ss@n0v@", 10),
+    pfp: "https://via.placeholder.com/40",
+    tokens: 0,
+    createdAt: new Date().toISOString(),
+    data: {}
+  };
+
+  saveUsers(users);
+
+  res.json({ success: true, message: "Admin reset complete" });
+});
+
+/* START SERVER */
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {
