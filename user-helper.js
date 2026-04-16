@@ -1,78 +1,99 @@
-// user-helper.js - Shared user management for all pages
+// user-helper.js - GLOBAL AUTH SYSTEM (FIXED)
 
 let currentUser = localStorage.getItem("currentUser");
 
-// Load user info into page
+// =========================
+// USER DISPLAY (ALL PAGES)
+// =========================
 async function loadUserDisplay() {
   const userBox = document.getElementById("userBox");
   if (!userBox) return;
 
-  if (currentUser) {
-    try {
-      const response = await fetch(`http://localhost:3000/api/users/${currentUser}`);
-      const result = await response.json();
+  if (!currentUser) {
+    userBox.innerHTML = "";
+    return;
+  }
 
-      if (result.success) {
-        const user = result.user;
-        userBox.innerHTML = `
-          <div style="display:flex;align-items:center;gap:15px;">
-            <img src="${user.pfp}" style="width:40px;height:40px;border-radius:50%;">
-            <span>${currentUser}</span>
-            <button onclick="window.logoutUser()" style="margin-left:10px;padding:8px 16px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">Logout</button>
-          </div>
-        `;
-      }
-    } catch (err) {
-      console.error("Error loading user:", err);
-      // Fallback: show logout if localStorage has user but server doesn't
-      if (currentUser) {
-        userBox.innerHTML = `
-          <div style="display:flex;align-items:center;gap:15px;">
-            <span>${currentUser}</span>
-            <button onclick="window.logoutUser()" style="padding:8px 16px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">Logout</button>
-          </div>
-        `;
-      }
+  try {
+    const response = await fetch(`http://localhost:3000/api/users/${currentUser}`);
+    const result = await response.json();
+
+    if (result.success) {
+      const user = result.user;
+
+      userBox.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img src="${user.pfp}" style="width:40px;height:40px;border-radius:50%;">
+          <span>${currentUser}</span>
+          <button onclick="window.logoutUser()"
+            style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;">
+            Logout
+          </button>
+        </div>
+      `;
+    } else {
+      throw new Error("User not found");
     }
-  } else {
-    userBox.innerHTML = '';
+
+  } catch (err) {
+    console.error(err);
+
+    userBox.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span>${currentUser}</span>
+        <button onclick="window.logoutUser()"
+          style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;">
+          Logout
+        </button>
+      </div>
+    `;
   }
 }
 
-// Load tokens
+// =========================
+// TOKENS (ALL PAGES)
+// =========================
 function loadTokens() {
   const tokenEl = document.getElementById("tokens");
   if (!tokenEl || !currentUser) return;
-  
+
   let t = localStorage.getItem(currentUser + "_tokens") || 0;
   tokenEl.innerText = "🪙 " + t;
 }
 
-// Logout function - make it global so onclick works
-window.logoutUser = function() {
+// =========================
+// LOGOUT
+// =========================
+window.logoutUser = function () {
   localStorage.removeItem("currentUser");
-  location.reload();
+  location.href = "login.html";
+};
+
+// =========================
+// ADMIN SYSTEM (UNIFIED)
+// =========================
+const ADMIN_USER = "Game_Master";
+
+function isAdmin() {
+  return currentUser === ADMIN_USER;
 }
 
-// Check if user is CritStrike (for admin panels)
-function isCritStrike() {
-  return currentUser === "CritStrike";
+function showAdminPanels() {
+  if (!isAdmin()) return;
+
+  document.querySelectorAll(".admin, #adminPanel")
+    .forEach(el => el.style.display = "block");
 }
 
-// Show admin panel if user is CritStrike
-function showAdminIfCritStrike() {
-  const adminPanel = document.getElementById("adminPanel");
-  if (adminPanel && isCritStrike()) {
-    adminPanel.style.display = "block";
-  }
-}
-
-// Initialize all user UI
+// =========================
+// INIT (ALL PAGES)
+// =========================
 async function initUserUI() {
+  currentUser = localStorage.getItem("currentUser"); // refresh live
+
   await loadUserDisplay();
   loadTokens();
-  showAdminIfCritStrike();
+  showAdminPanels();
 }
 
-// Wait for page to load, then init
 document.addEventListener("DOMContentLoaded", initUserUI);
