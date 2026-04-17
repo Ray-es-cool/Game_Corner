@@ -4,14 +4,13 @@
 <meta charset="UTF-8">
 <title>Tones / Colours</title>
 
-<!-- ================= THEME ENGINE ================= -->
 <script>
 function applyTheme(){
 
 let theme = localStorage.getItem("theme") || "dark";
 let root = document.documentElement;
 
-/* DARK BLUE */
+/* DARK */
 if(theme === "dark"){
 root.style.setProperty("--bg", "#000");
 root.style.setProperty("--panel", "#0a0a0a");
@@ -37,17 +36,12 @@ root.style.setProperty("--card", "#3b0f42");
 root.style.setProperty("--accent", "#ff4fa3");
 root.style.setProperty("--text", "white");
 }
-
 }
 
-/* apply immediately */
 applyTheme();
 
-/* live update across tabs/pages */
 window.addEventListener("storage",(e)=>{
-if(e.key === "theme"){
-applyTheme();
-}
+if(e.key === "theme") applyTheme();
 });
 </script>
 
@@ -59,7 +53,7 @@ background:var(--bg);
 color:var(--text);
 }
 
-/* NAVBAR */
+/* NAV */
 .nav{
 width:80%;
 margin:20px auto;
@@ -74,15 +68,14 @@ box-shadow:0 0 20px rgba(59,130,246,0.4);
 
 .nav-center{
 display:flex;
-gap:40px;
-justify-content:center;
+gap:30px;
 flex:1;
+justify-content:center;
 }
 
 .nav a{
 color:var(--text);
 text-decoration:none;
-font-size:18px;
 padding:8px 14px;
 border-radius:10px;
 }
@@ -91,17 +84,10 @@ border-radius:10px;
 background:var(--card);
 }
 
-/* USER */
 .user-box{
 display:flex;
 align-items:center;
 gap:10px;
-}
-
-.user-box img{
-width:40px;
-height:40px;
-border-radius:50%;
 }
 
 /* MAIN */
@@ -112,7 +98,6 @@ margin-top:60px;
 text-align:center;
 }
 
-/* THEME CARDS */
 .card{
 display:inline-block;
 width:250px;
@@ -135,27 +120,16 @@ border-radius:15px;
 margin-bottom:10px;
 }
 
-/* PREVIEWS */
 .blue{ background:#0a0a0a; border:2px solid #3b82f6; }
 .light{ background:#ffffff; border:2px solid #2563eb; }
 .pink{ background:#2a0a2f; border:2px solid #ff4fa3; }
 
-/* TOKEN */
 .token{
 position:fixed;
 bottom:20px;
 left:50%;
 transform:translateX(-50%);
 font-size:32px;
-}
-
-button{
-padding:10px 15px;
-border:none;
-border-radius:10px;
-background:var(--accent);
-color:white;
-cursor:pointer;
 }
 </style>
 </head>
@@ -168,8 +142,11 @@ cursor:pointer;
 
 <div class="nav-center">
 <a href="index.html">Home</a>
-<a href="music.html">Music</a>
+<a href="Games.html">Games</a>
+<a href="DailyRewards.html">Daily Rewards</a>
 <a href="settings.html">Settings</a>
+<a href="login.html">Login</a>
+<a href="shop.html">Shop</a>
 <a href="tones.html">Tones</a>
 </div>
 
@@ -198,82 +175,103 @@ cursor:pointer;
 
 </div>
 
-<div class="token">🪙 0</div>
+<div class="token" id="tokens">🪙 0</div>
 
-<!-- 🎧 MUSIC ENGINE -->
 <script src="music-engine.js"></script>
 
 <script>
 
-/* USER SYSTEM */
+/* =========================
+   GLOBAL USER SYSTEM
+========================= */
 let currentUser = localStorage.getItem("currentUser");
-let users = JSON.parse(localStorage.getItem("users")) || {};
 
-function loadUser(){
+function loadUserUI(){
 let box = document.getElementById("userBox");
-if(currentUser && users[currentUser]){
-box.innerHTML = `<img src="${users[currentUser].pfp}">${currentUser}`;
+
+if(!box) return;
+
+if(currentUser){
+box.innerHTML = `
+<span>${currentUser}</span>
+<button onclick="logoutUser()" 
+style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+Logout
+</button>
+`;
+} else {
+box.innerHTML = `<a href="login.html">Login</a>`;
 }
 }
 
-/* APPLY THEME */
+function logoutUser(){
+localStorage.removeItem("currentUser");
+location.reload();
+}
+
+/* =========================
+   TOKENS
+========================= */
+function loadTokens(){
+let el = document.getElementById("tokens");
+if(!el || !currentUser) return;
+
+el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+}
+
+window.addEventListener("storage",(e)=>{
+if(e.key === currentUser+"_tokens"){
+loadTokens();
+}
+});
+
+/* =========================
+   THEME CHANGE
+========================= */
 function setTheme(t){
 localStorage.setItem("theme", t);
 applyTheme();
 }
 
-/* INIT */
-loadUser();
+/* =========================
+   INIT
+========================= */
+document.addEventListener("DOMContentLoaded",()=>{
+loadUserUI();
+loadTokens();
+});
 
 /* =========================
    GLOBAL MUSIC SYNC
 ========================= */
-
-let globalAudio;
-
-function initGlobalMusic(){
-
+(function(){
 if(window.globalAudio) return;
 
-globalAudio = new Audio();
-globalAudio.loop = true;
+let a=new Audio();
+a.loop=true;
 
-let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
-let track = parseInt(localStorage.getItem("track")) || 0;
-let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
+let p=JSON.parse(localStorage.getItem("playlist"))||[];
+let t=parseInt(localStorage.getItem("track"))||0;
+let v=parseFloat(localStorage.getItem("volume"))||0.5;
 
-if(playlist.length){
-let song = playlist[track];
-globalAudio.src = song.data || song;
-globalAudio.volume = volume;
-
-/* 🔥 SYNC POSITION */
-let savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
-globalAudio.currentTime = savedTime;
+if(p.length){
+a.src=p[t].data||p[t];
+a.volume=v;
+a.currentTime=parseFloat(localStorage.getItem("musicTime"))||0;
 }
 
-if(localStorage.getItem("musicPlaying") === "true"){
-globalAudio.play().catch(()=>{});
+if(localStorage.getItem("musicPlaying")==="true"){
+a.play().catch(()=>{});
 }
 
-document.addEventListener("click", ()=>{
-globalAudio.play().catch(()=>{});
-},{once:true});
+document.addEventListener("click",()=>a.play().catch(()=>{}),{once:true});
 
-window.globalAudio = globalAudio;
-
-/* 🔥 SAVE EVERY 0.5s */
 setInterval(()=>{
-if(globalAudio.src && !isNaN(globalAudio.currentTime)){
-localStorage.setItem("track", track);
-localStorage.setItem("musicTime", globalAudio.currentTime);
-}
+localStorage.setItem("musicTime",a.currentTime);
 },500);
 
-}
-
-initGlobalMusic();
-
+window.globalAudio=a;
+})();
 </script>
 
 </body>

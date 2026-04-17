@@ -140,10 +140,9 @@ font-size:30px;
 
 <script>
 
-/* USER */
-let currentUser = localStorage.getItem("currentUser");
-
-/* GAMES */
+/* =========================
+   GAMES
+========================= */
 function getTopGames(){
 let games = JSON.parse(localStorage.getItem("games")) || [];
 return games
@@ -154,7 +153,7 @@ return games
 }
 
 function canPlayGames(){
-return !!currentUser;
+return !!localStorage.getItem("currentUser");
 }
 
 function openGame(i){
@@ -188,7 +187,9 @@ ${canPlayGames()?"Play":"Login Required"}
 `).join("");
 }
 
-/* SITE */
+/* =========================
+   SITE API
+========================= */
 async function loadSite(){
 try{
 let r=await fetch("/api/site");
@@ -229,8 +230,12 @@ el=document.getElementById("sloganText");
 if(el) el.innerText=d.slogan;
 }
 
-/* ADMIN SAVE */
+/* =========================
+   ADMIN SAVE
+========================= */
 async function save(){
+
+let currentUser = localStorage.getItem("currentUser");
 
 if(currentUser!=="Game_Master"){
 alert("Admin only");
@@ -268,19 +273,23 @@ alert("Saved");
 loadSite();
 }
 
-/* MUSIC */
+/* =========================
+   GLOBAL MUSIC (FIXED FULL SYNC)
+========================= */
 (function(){
 if(window.globalAudio) return;
 
 let a=new Audio();
 a.loop=true;
 
-let p=JSON.parse(localStorage.getItem("playlist"))||[];
-let t=parseInt(localStorage.getItem("track"))||0;
+let playlist=JSON.parse(localStorage.getItem("playlist"))||[];
+let track=parseInt(localStorage.getItem("track"))||0;
+let volume=parseFloat(localStorage.getItem("volume"))||0.5;
 
-if(p.length){
-a.src=p[t].data||p[t];
+if(playlist.length){
+a.src=playlist[track].data||playlist[track];
 a.currentTime=parseFloat(localStorage.getItem("musicTime"))||0;
+a.volume=volume;
 }
 
 if(localStorage.getItem("musicPlaying")==="true"){
@@ -290,24 +299,18 @@ a.play().catch(()=>{});
 document.addEventListener("click",()=>a.play().catch(()=>{}),{once:true});
 
 setInterval(()=>{
+if(!isNaN(a.currentTime)){
 localStorage.setItem("musicTime",a.currentTime);
+localStorage.setItem("track",track);
+}
 },500);
 
 window.globalAudio=a;
 })();
 
-/* USER UI */
-let userBox=document.getElementById("userBox");
-if(userBox && currentUser){
-userBox.innerHTML=`<span>${currentUser}</span>`;
-}
-
-if(currentUser==="Game_Master"){
-document.querySelectorAll(".admin")
-.forEach(p=>p.style.display="block");
-}
-
-/* INIT FIX (IMPORTANT) */
+/* =========================
+   INIT
+========================= */
 document.addEventListener("DOMContentLoaded", async ()=>{
 await loadSite();
 renderRecommendedGames();

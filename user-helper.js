@@ -1,43 +1,100 @@
-window.currentUser = localStorage.getItem("currentUser") || null;
+/* =========================
+   GLOBAL USER SYSTEM (FIXED CORE)
+========================= */
 
-/* SAFE ADMIN CHECK */
-window.isAdminUser = function () {
-  return window.currentUser === "Game_Master";
-};
+let currentUser = localStorage.getItem("currentUser") || null;
 
-/* SAFE LOGOUT */
-window.logoutUser = function () {
-  localStorage.removeItem("currentUser");
-  location.href = "login.html";
-};
+/* LIVE SYNC ACROSS PAGES */
+window.addEventListener("storage", (e) => {
+    if (e.key === "currentUser") {
+        currentUser = localStorage.getItem("currentUser");
+        initUserSystem(); // refresh UI instantly
+    }
+});
 
-function safeInit() {
-  try {
+/* =========================
+   USER UI
+========================= */
+function loadUserDisplay() {
     const userBox = document.getElementById("userBox");
-    if (userBox && window.currentUser) {
-      userBox.innerHTML = `
-        <span>${window.currentUser}</span>
-        <button onclick="logoutUser()" style="margin-left:10px;">
-          Logout
-        </button>
-      `;
-    }
+    if (!userBox) return;
 
-    const tokenEl = document.getElementById("tokens");
-    if (tokenEl && window.currentUser) {
-      tokenEl.innerText =
-        "🪙 " +
-        (localStorage.getItem(window.currentUser + "_tokens") || 0);
+    if (currentUser) {
+        userBox.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span>${currentUser}</span>
+                <button onclick="logoutUser()" 
+                    style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;">
+                    Logout
+                </button>
+            </div>
+        `;
+    } else {
+        userBox.innerHTML = `<a href="login.html">Login</a>`;
     }
-
-    document.querySelectorAll(".admin, #adminPanel").forEach(el => {
-      if (el && window.isAdminUser()) {
-        el.style.display = "block";
-      }
-    });
-  } catch (err) {
-    console.error("user-helper crashed:", err);
-  }
 }
 
-document.addEventListener("DOMContentLoaded", safeInit);
+/* =========================
+   TOKENS (SAFE GLOBAL)
+========================= */
+function loadTokens() {
+    const el = document.getElementById("tokens");
+    if (!el || !currentUser) return;
+
+    let t = parseInt(localStorage.getItem(currentUser + "_tokens")) || 0;
+    el.innerText = "🪙 " + t;
+}
+
+/* LIVE TOKEN UPDATE (used by games/music/events) */
+window.addEventListener("storage", (e) => {
+    if (e.key && e.key.includes("_tokens")) {
+        loadTokens();
+    }
+});
+
+/* =========================
+   LOGOUT (GLOBAL SAFE)
+========================= */
+function logoutUser() {
+    localStorage.removeItem("currentUser");
+    currentUser = null;
+    location.reload();
+}
+
+/* =========================
+   ADMIN SYSTEM
+========================= */
+function isAdmin() {
+    return currentUser === "Game_Master";
+}
+
+/* APPLY ADMIN VISIBILITY */
+function applyAdmin() {
+    if (!isAdmin()) return;
+
+    document.querySelectorAll(".admin").forEach(el => {
+        el.style.display = "block";
+    });
+}
+
+/* =========================
+   OPTIONAL SAFE GUARD
+   (prevents blank page crashes)
+========================= */
+function safeGet(id) {
+    return document.getElementById(id);
+}
+
+/* =========================
+   INIT SYSTEM (IMPORTANT)
+========================= */
+function initUserSystem() {
+    currentUser = localStorage.getItem("currentUser") || null;
+
+    loadUserDisplay();
+    loadTokens();
+    applyAdmin();
+}
+
+/* WAIT FOR DOM */
+document.addEventListener("DOMContentLoaded", initUserSystem);

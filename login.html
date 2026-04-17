@@ -5,311 +5,197 @@
 <title>Login</title>
 
 <script>
+
+let isLogin = true;
+
+/* =========================
+   THEME SYSTEM (SAFE)
+========================= */
 function applyTheme(){
 
-let theme = localStorage.getItem("theme") || "dark";
-let root = document.documentElement;
+    let theme = localStorage.getItem("theme") || "dark";
+    let root = document.documentElement;
 
-if(theme === "dark"){
-root.style.setProperty("--bg", "#000");
-root.style.setProperty("--panel", "#0a0a0a");
-root.style.setProperty("--card", "#1f2937");
-root.style.setProperty("--accent", "#3b82f6");
-root.style.setProperty("--text", "white");
-}
+    if(theme === "dark"){
+        root.style.setProperty("--bg", "#000");
+        root.style.setProperty("--panel", "#0a0a0a");
+        root.style.setProperty("--card", "#1f2937");
+        root.style.setProperty("--accent", "#3b82f6");
+        root.style.setProperty("--text", "white");
+    }
 
-if(theme === "light"){
-root.style.setProperty("--bg", "#f3f4f6");
-root.style.setProperty("--panel", "#ffffff");
-root.style.setProperty("--card", "#e5e7eb");
-root.style.setProperty("--accent", "#2563eb");
-root.style.setProperty("--text", "#111");
-}
+    if(theme === "light"){
+        root.style.setProperty("--bg", "#f3f4f6");
+        root.style.setProperty("--panel", "#ffffff");
+        root.style.setProperty("--card", "#e5e7eb");
+        root.style.setProperty("--accent", "#2563eb");
+        root.style.setProperty("--text", "#111");
+    }
 
-if(theme === "pink"){
-root.style.setProperty("--bg", "#1a001f");
-root.style.setProperty("--panel", "#2a0a2f");
-root.style.setProperty("--card", "#3b0f42");
-root.style.setProperty("--accent", "#ff4fa3");
-root.style.setProperty("--text", "white");
-}
-
+    if(theme === "pink"){
+        root.style.setProperty("--bg", "#1a001f");
+        root.style.setProperty("--panel", "#2a0a2f");
+        root.style.setProperty("--card", "#3b0f42");
+        root.style.setProperty("--accent", "#ff4fa3");
+        root.style.setProperty("--text", "white");
+    }
 }
 
 applyTheme();
 
-window.addEventListener("storage",(e)=>{
-if(e.key === "theme") applyTheme();
+window.addEventListener("storage", (e)=>{
+    if(e.key === "theme") applyTheme();
 });
-</script>
 
-<style>
-body{
-margin:0;
-font-family:Arial;
-background:var(--bg);
-color:var(--text);
-display:flex;
-justify-content:center;
-}
-
-.container{ width:100%; max-width:1200px; }
-
-.nav{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:14px 20px;
-margin-top:20px;
-border-radius:20px;
-background:var(--panel);
-box-shadow:0 0 15px rgba(59,130,246,0.4);
-}
-
-.nav-center{
-display:flex;
-gap:20px;
-justify-content:center;
-flex:1;
-}
-
-.nav a{
-color:var(--text);
-text-decoration:none;
-padding:10px 14px;
-border-radius:10px;
-}
-
-.nav a:hover{ background:var(--card); }
-
-.user-box{
-display:flex;
-align-items:center;
-gap:10px;
-}
-
-.main{
-text-align:center;
-margin-top:80px;
-}
-
-.box{
-display:inline-block;
-padding:30px;
-background:var(--panel);
-border-radius:20px;
-box-shadow:0 0 20px rgba(59,130,246,0.3);
-width:320px;
-}
-
-input{
-width:100%;
-margin-top:10px;
-padding:12px;
-border:none;
-border-radius:10px;
-background:var(--card);
-color:var(--text);
-}
-
-button{
-width:100%;
-margin-top:15px;
-padding:14px;
-border:none;
-border-radius:12px;
-background:var(--accent);
-color:white;
-cursor:pointer;
-}
-
-.switch{
-margin-top:15px;
-cursor:pointer;
-color:var(--accent);
-}
-
-.logout-btn{
-background:#ef4444;
-margin-top:15px;
-}
-
-.token{
-position:fixed;
-bottom:20px;
-left:50%;
-transform:translateX(-50%);
-font-size:36px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<div class="nav">
-<div></div>
-
-<div class="nav-center">
-<a href="index.html">Home</a>
-<a href="Games.html">Games</a>
-<a href="DailyRewards.html">Daily Rewards</a>
-<a href="shop.html">Shop</a>
-<a href="settings.html">Settings</a>
-<a href="login.html">Login</a>
-</div>
-
-<div>
-<div class="user-box" id="userBox"></div>
-</div>
-</div>
-
-<div class="main">
-<div class="box">
-
-<h2 id="title">Login</h2>
-
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-
-<button onclick="submit()">Login</button>
-
-<div class="switch" onclick="toggleMode()" id="switchText">
-Don't have an account? Register
-</div>
-
-<button id="logoutBtn" class="logout-btn" style="display:none;" onclick="logout()">Logout</button>
-
-<p id="msg"></p>
-
-</div>
-</div>
-
-</div>
-
-<div class="token" id="tokens">🪙 0</div>
-
-<script src="music-engine.js"></script>
-<script src="user-helper.js"></script>
-
-<script>
-
-let isLogin = true;
-
-/* SWITCH */
+/* =========================
+   MODE SWITCH
+========================= */
 function toggleMode(){
 
-isLogin = !isLogin;
+    isLogin = !isLogin;
 
-document.getElementById("title").innerText =
-isLogin ? "Login" : "Register";
+    let title = document.getElementById("title");
+    let btn = document.querySelector("button");
+    let switchText = document.getElementById("switchText");
 
-document.querySelector("button").innerText =
-isLogin ? "Login" : "Register";
+    if(title) title.innerText = isLogin ? "Login" : "Register";
+    if(btn) btn.innerText = isLogin ? "Login" : "Register";
 
-document.getElementById("switchText").innerText =
-isLogin
-? "Don't have an account? Register"
-: "Already have an account? Login";
-
+    if(switchText){
+        switchText.innerText = isLogin
+            ? "Don't have an account? Register"
+            : "Already have an account? Login";
+    }
 }
 
-/* SUBMIT */
+/* =========================
+   LOGIN / REGISTER
+========================= */
 async function submit(){
 
-let user = document.getElementById("username").value;
-let pass = document.getElementById("password").value;
-let msg = document.getElementById("msg");
+    let user = document.getElementById("username")?.value;
+    let pass = document.getElementById("password")?.value;
+    let msg = document.getElementById("msg");
 
-if(!user || !pass){
-msg.innerText = "Fill all fields";
-return;
+    if(!msg) return;
+
+    if(!user || !pass){
+        msg.innerText = "Fill all fields";
+        return;
+    }
+
+    /* =========================
+       LOGIN
+    ========================= */
+    if(isLogin){
+
+        try {
+
+            const res = await fetch("/api/users/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+
+            let result;
+
+            try {
+                result = await res.json();
+            } catch {
+                msg.innerText = "Server response error";
+                return;
+            }
+
+            if(res.ok && result.success){
+
+                localStorage.setItem("currentUser", user);
+                localStorage.setItem(user + "_tokens", result.tokens || 0);
+
+                /* 🔥 GLOBAL SYNC */
+                localStorage.setItem("userSync", Date.now());
+
+                /* FIX: prevents blank reload issue */
+                window.location.href = "index.html";
+
+            } else {
+                msg.innerText = result?.error || "Invalid login";
+            }
+
+        } catch(err){
+            console.error(err);
+            msg.innerText = "Cannot connect to server";
+        }
+
+    }
+
+    /* =========================
+       REGISTER
+    ========================= */
+    else{
+
+        try {
+
+            const res = await fetch("/api/users/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: user,
+                    password: pass,
+                    pfp: "https://via.placeholder.com/40"
+                })
+            });
+
+            let result = await res.json();
+
+            if(res.ok && result.success){
+                msg.innerText = "Account created! You can log in now.";
+                toggleMode();
+            } else {
+                msg.innerText = result?.error || "Registration failed";
+            }
+
+        } catch(err){
+            console.error(err);
+            msg.innerText = "Cannot connect to server";
+        }
+
+    }
 }
 
-/* LOGIN */
-if(isLogin){
-
-try {
-const response = await fetch("/api/users/login", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ username: user, password: pass })
-});
-
-let result;
-
-try {
-result = await response.json();
-} catch {
-msg.innerText = "Server error";
-return;
-}
-
-if(response.ok && result.success){
-localStorage.setItem("currentUser", user);
-localStorage.setItem(user + "_tokens", result.tokens || 0);
-location.reload();
-} else {
-msg.innerText = result?.error || "Invalid login";
-}
-
-} catch(err){
-msg.innerText = "Cannot connect (Render may be sleeping)";
-console.error(err);
-}
-
-}
-
-/* REGISTER */
-else{
-
-try {
-const response = await fetch("/api/users/signup", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
-username: user,
-password: pass,
-pfp: "https://via.placeholder.com/40"
-})
-});
-
-let result;
-
-try {
-result = await response.json();
-} catch {
-msg.innerText = "Server error";
-return;
-}
-
-if(response.ok && result.success){
-msg.innerText = "Account created! Now login.";
-toggleMode();
-} else {
-msg.innerText = result?.error || "Registration failed";
-}
-
-} catch(err){
-msg.innerText = "Cannot connect (Render may be sleeping)";
-console.error(err);
-}
-
-}
-
-}
-
-/* LOGOUT */
+/* =========================
+   LOGOUT
+========================= */
 function logout(){
-localStorage.removeItem("currentUser");
-location.reload();
+
+    localStorage.removeItem("currentUser");
+
+    /* 🔥 SYNC ALL PAGES */
+    localStorage.setItem("userSync", Date.now());
+
+    location.reload();
 }
 
-/* SHOW LOGOUT IF LOGGED IN */
-if(localStorage.getItem("currentUser")){
-document.getElementById("logoutBtn").style.display = "block";
-}
+/* =========================
+   INIT (THIS PREVENTS BLANK PAGE BUG)
+========================= */
+document.addEventListener("DOMContentLoaded", ()=>{
+
+    let logoutBtn = document.getElementById("logoutBtn");
+
+    if(localStorage.getItem("currentUser") && logoutBtn){
+        logoutBtn.style.display = "block";
+    }
+
+});
+
+/* =========================
+   CROSS PAGE SYNC
+========================= */
+window.addEventListener("storage", (e)=>{
+    if(e.key === "userSync"){
+        location.reload();
+    }
+});
 
 </script>
 

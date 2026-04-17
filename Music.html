@@ -6,7 +6,6 @@
 
 <script>
 function applyTheme(){
-
     let theme = localStorage.getItem("theme") || "dark";
     let root = document.documentElement;
 
@@ -34,7 +33,6 @@ function applyTheme(){
         root.style.setProperty("--text", "white");
     }
 }
-
 applyTheme();
 
 window.addEventListener("storage",(e)=>{
@@ -188,20 +186,55 @@ input[type="range"]{
 
 <div class="token" id="tokens">🪙 0</div>
 
-<script src="music-engine.js"></script>
-<script src="user-helper.js"></script>
-
 <script>
 
 /* =========================
-   INIT
+   USER SYSTEM (GLOBAL)
 ========================= */
-let selectedIndex = 0;
 let currentUser = localStorage.getItem("currentUser");
+
+function loadUserUI(){
+    let box = document.getElementById("userBox");
+
+    if(!box) return;
+
+    if(currentUser){
+        box.innerHTML = `
+            <span>${currentUser}</span>
+            <button onclick="logoutUser()" 
+            style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+            Logout
+            </button>
+        `;
+    } else {
+        box.innerHTML = `<a href="login.html">Login</a>`;
+    }
+}
+
+function logoutUser(){
+    localStorage.removeItem("currentUser");
+    location.reload();
+}
+
+/* TOKENS */
+function loadTokens(){
+    let el = document.getElementById("tokens");
+    if(!el || !currentUser) return;
+
+    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+}
+
+window.addEventListener("storage",(e)=>{
+    if(e.key === currentUser+"_tokens"){
+        loadTokens();
+    }
+});
 
 /* =========================
    PLAYLIST
 ========================= */
+let selectedIndex = 0;
+
 function getPlaylist(){
     return JSON.parse(localStorage.getItem("playlist")) || [];
 }
@@ -212,8 +245,9 @@ function savePlaylist(list){
 }
 
 function renderPlaylist(){
-
     let box = document.getElementById("playlistBox");
+    if(!box) return;
+
     box.innerHTML = "<h3>Playlist</h3>";
 
     let list = getPlaylist();
@@ -244,10 +278,6 @@ function playSelected(){
     localStorage.setItem("track", selectedIndex);
     localStorage.setItem("musicPlaying", "true");
     localStorage.setItem("musicCommand", Date.now());
-
-    if(window.reloadMusic){
-        window.reloadMusic();
-    }
 }
 
 /* =========================
@@ -259,36 +289,29 @@ function syncVolume(){
     let v = localStorage.getItem("volume");
     if(v === null) v = 0.5;
 
-    slider.value = v;
+    if(slider) slider.value = v;
 
     if(window.globalAudio){
         window.globalAudio.volume = parseFloat(v);
     }
 }
 
-slider.addEventListener("input",(e)=>{
-    let v = parseFloat(e.target.value);
-    localStorage.setItem("volume", v);
+if(slider){
+    slider.addEventListener("input",(e)=>{
+        let v = parseFloat(e.target.value);
+        localStorage.setItem("volume", v);
 
-    if(window.globalAudio){
-        window.globalAudio.volume = v;
-    }
-});
-
-window.addEventListener("storage",(e)=>{
-    if(e.key === "volume") syncVolume();
-});
+        if(window.globalAudio){
+            window.globalAudio.volume = v;
+        }
+    });
+}
 
 /* =========================
-   ADMIN PANEL
+   ADMIN
 ========================= */
 function isAdmin(){
     return currentUser === "Game_Master";
-}
-
-if(isAdmin()){
-    let panel = document.getElementById("adminPanel");
-    if(panel) panel.style.display = "block";
 }
 
 /* =========================
@@ -317,17 +340,12 @@ async function uploadSongs(){
 
     savePlaylist(newList);
     renderPlaylist();
-
-    if(window.reloadMusic){
-        window.reloadMusic();
-    }
 }
 
 /* =========================
    CLEAR
 ========================= */
 function clearSongs(){
-
     if(!isAdmin()){
         alert("Not allowed");
         return;
@@ -335,18 +353,13 @@ function clearSongs(){
 
     localStorage.removeItem("playlist");
     localStorage.setItem("musicCommand", Date.now());
-
     renderPlaylist();
-
-    if(window.reloadMusic){
-        window.reloadMusic();
-    }
 }
 
 /* =========================
    GLOBAL MUSIC ENGINE
 ========================= */
-(function initMusic(){
+(function(){
 
     if(window.globalAudio) return;
 
@@ -355,11 +368,10 @@ function clearSongs(){
     window.globalAudio = audio;
 
     function load(){
-
         let playlist = getPlaylist();
         let track = parseInt(localStorage.getItem("track")) || 0;
         let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
-        let time = parseFloat(localStorage.getItem("time")) || 0;
+        let time = parseFloat(localStorage.getItem("musicTime")) || 0;
 
         let song = playlist[track];
         if(!song) return;
@@ -373,19 +385,17 @@ function clearSongs(){
         }
     }
 
-    window.reloadMusic = load;
-
     window.addEventListener("storage",(e)=>{
-        if(e.key === "musicCommand"){
+        if(e.key === "musicCommand" || e.key === "track"){
             load();
         }
     });
 
     setInterval(()=>{
         if(audio.src){
-            localStorage.setItem("time", audio.currentTime);
+            localStorage.setItem("musicTime", audio.currentTime);
         }
-    },1000);
+    },500);
 
     document.addEventListener("click",()=>{
         audio.play().catch(()=>{});
@@ -396,18 +406,19 @@ function clearSongs(){
 })();
 
 /* =========================
-   INIT PAGE
+   INIT
 ========================= */
-renderPlaylist();
-syncVolume();
+document.addEventListener("DOMContentLoaded", ()=>{
+    renderPlaylist();
+    syncVolume();
+    loadUserUI();
+    loadTokens();
 
-/* =========================
-   USER DISPLAY
-========================= */
-let userBox = document.getElementById("userBox");
-if(userBox && currentUser){
-    userBox.innerHTML = `<span>${currentUser}</span>`;
-}
+    if(isAdmin()){
+        let panel = document.getElementById("adminPanel");
+        if(panel) panel.style.display = "block";
+    }
+});
 
 </script>
 

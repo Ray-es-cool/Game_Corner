@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Shop</title>
+
+<script>
+function applyTheme(){
+    let theme = localStorage.getItem("theme") || "dark";
+    let root = document.documentElement;
+
+    if(theme === "dark"){
+        root.style.setProperty("--bg", "#000");
+        root.style.setProperty("--panel", "#0a0a0a");
+        root.style.setProperty("--card", "#1f2937");
+        root.style.setProperty("--accent", "#3b82f6");
+        root.style.setProperty("--text", "white");
+    }
+
+    if(theme === "light"){
+        root.style.setProperty("--bg", "#f3f4f6");
+        root.style.setProperty("--panel", "#ffffff");
+        root.style.setProperty("--card", "#e5e7eb");
+        root.style.setProperty("--accent", "#2563eb");
+        root.style.setProperty("--text", "#111");
+    }
+
+    if(theme === "pink"){
+        root.style.setProperty("--bg", "#1a001f");
+        root.style.setProperty("--panel", "#2a0a2f");
+        root.style.setProperty("--card", "#3b0f42");
+        root.style.setProperty("--accent", "#ff4fa3");
+        root.style.setProperty("--text", "white");
+    }
+}
+applyTheme();
+
+window.addEventListener("storage",(e)=>{
+    if(e.key === "theme") applyTheme();
+});
+</script>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:var(--bg);
+color:var(--text);
+}
+
+/* NAV */
+.nav{
+width:80%;
+margin:20px auto;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 30px;
+border-radius:30px;
+background:var(--panel);
+box-shadow:0 0 20px rgba(59,130,246,0.4);
+}
+
+.nav-center{
+display:flex;
+gap:30px;
+margin:auto;
+}
+
+.nav a{
+color:var(--text);
+text-decoration:none;
+padding:8px 14px;
+border-radius:10px;
+}
+
+.nav a:hover{
+background:var(--card);
+}
+
+.user-box{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+/* MAIN */
+.main{
+width:80%;
+margin:auto;
+}
+
+.title{
+text-align:center;
+font-size:40px;
+margin-top:20px;
+}
+
+.shop-grid{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+gap:20px;
+margin-top:30px;
+}
+
+.item{
+background:var(--panel);
+padding:20px;
+border-radius:15px;
+text-align:center;
+box-shadow:0 0 15px rgba(59,130,246,0.2);
+}
+
+.item h3{
+margin-bottom:10px;
+}
+
+.item button{
+margin-top:10px;
+padding:10px;
+border:none;
+border-radius:10px;
+background:var(--accent);
+color:white;
+cursor:pointer;
+width:100%;
+}
+
+.token{
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+font-size:32px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- NAV -->
+<div class="nav">
+<div></div>
+
+<div class="nav-center">
+<a href="index.html">Home</a>
+<a href="Games.html">Games</a>
+<a href="DailyRewards.html">Daily Rewards</a>
+<a href="settings.html">Settings</a>
+<a href="login.html">Login</a>
+<a href="shop.html">Shop</a>
+</div>
+
+<div class="user-box" id="userBox"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<div class="title">Shop</div>
+
+<div class="shop-grid" id="shopGrid"></div>
+
+</div>
+
+<div class="token" id="tokens">🪙 0</div>
+
+<script>
+
+/* =========================
+   USER SYSTEM
+========================= */
+let currentUser = localStorage.getItem("currentUser");
+
+function loadUserUI(){
+    let box = document.getElementById("userBox");
+
+    if(!box) return;
+
+    if(currentUser){
+        box.innerHTML = `
+            <span>${currentUser}</span>
+            <button onclick="logoutUser()" 
+            style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+            Logout
+            </button>
+        `;
+    } else {
+        box.innerHTML = `<a href="login.html">Login</a>`;
+    }
+}
+
+function logoutUser(){
+    localStorage.removeItem("currentUser");
+    location.reload();
+}
+
+/* =========================
+   TOKENS
+========================= */
+function loadTokens(){
+    let el = document.getElementById("tokens");
+    if(!el || !currentUser) return;
+
+    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+}
+
+window.addEventListener("storage",(e)=>{
+    if(e.key === currentUser+"_tokens"){
+        loadTokens();
+    }
+});
+
+/* =========================
+   SHOP ITEMS
+========================= */
+let items = [
+    {name:"+50 Tokens", price:0, type:"bonus"},
+    {name:"Cool Theme (Coming Soon)", price:100},
+    {name:"VIP Badge (Coming Soon)", price:200},
+    {name:"Mystery Item", price:150}
+];
+
+function renderShop(){
+    let grid = document.getElementById("shopGrid");
+    grid.innerHTML = "";
+
+    items.forEach((item,i)=>{
+        let div = document.createElement("div");
+        div.className = "item";
+
+        div.innerHTML = `
+            <h3>${item.name}</h3>
+            <p>Cost: ${item.price} 🪙</p>
+            <button onclick="buy(${i})">Buy</button>
+        `;
+
+        grid.appendChild(div);
+    });
+}
+
+/* =========================
+   BUY SYSTEM
+========================= */
+function buy(i){
+
+    if(!currentUser){
+        alert("Login required");
+        window.location.href="login.html";
+        return;
+    }
+
+    let item = items[i];
+    let tokens = parseInt(localStorage.getItem(currentUser+"_tokens")) || 0;
+
+    if(tokens < item.price){
+        alert("Not enough tokens");
+        return;
+    }
+
+    tokens -= item.price;
+
+    /* Example reward */
+    if(item.type === "bonus"){
+        tokens += 50;
+    }
+
+    localStorage.setItem(currentUser+"_tokens", tokens);
+    localStorage.setItem("tokenSync", Date.now());
+
+    loadTokens();
+    alert("Purchased!");
+}
+
+/* =========================
+   INIT
+========================= */
+document.addEventListener("DOMContentLoaded", ()=>{
+    loadUserUI();
+    loadTokens();
+    renderShop();
+});
+
+</script>
+
+</body>
+</html>

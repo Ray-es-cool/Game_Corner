@@ -5,263 +5,195 @@
 <title>Daily Rewards</title>
 
 <script>
-function applyTheme(){
-
-let theme = localStorage.getItem("theme") || "dark";
-let root = document.documentElement;
-
-/* DARK */
-if(theme === "dark"){
-root.style.setProperty("--bg", "#000");
-root.style.setProperty("--panel", "#0a0a0a");
-root.style.setProperty("--card", "#1f2937");
-root.style.setProperty("--accent", "#3b82f6");
-root.style.setProperty("--text", "white");
-}
-
-/* LIGHT */
-if(theme === "light"){
-root.style.setProperty("--bg", "#f3f4f6");
-root.style.setProperty("--panel", "#ffffff");
-root.style.setProperty("--card", "#e5e7eb");
-root.style.setProperty("--accent", "#2563eb");
-root.style.setProperty("--text", "#111");
-}
-
-/* PINK */
-if(theme === "pink"){
-root.style.setProperty("--bg", "#1a001f");
-root.style.setProperty("--panel", "#2a0a2f");
-root.style.setProperty("--card", "#3b0f42");
-root.style.setProperty("--accent", "#ff4fa3");
-root.style.setProperty("--text", "white");
-}
-
-}
-
-applyTheme();
-
-window.addEventListener("storage",(e)=>{
-if(e.key === "theme") applyTheme();
-});
-</script>
-
-<style>
-body {
-margin:0;
-font-family:Arial;
-background:var(--bg);
-color:var(--text);
-display:flex;
-justify-content:center;
-}
-
-.container {
-width:100%;
-max-width:1200px;
-}
-
-.nav {
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:14px 20px;
-margin-top:20px;
-border-radius:20px;
-background:var(--panel);
-box-shadow:0 0 15px rgba(59,130,246,0.4);
-}
-
-.nav-spacer { width:140px; }
-
-.nav-center {
-display:flex;
-gap:16px;
-}
-
-.nav-center a {
-color:var(--text);
-text-decoration:none;
-padding:10px 14px;
-border-radius:10px;
-white-space:nowrap;
-}
-
-.nav-center a:hover{
-background:var(--card);
-}
-
-.user-box {
-display:flex;
-align-items:center;
-gap:10px;
-}
-
-.user-box img {
-width:40px;
-height:40px;
-border-radius:50%;
-}
-
-.main {
-text-align:center;
-margin-top:80px;
-}
-
-.box {
-display:inline-block;
-padding:30px;
-background:var(--panel);
-border-radius:20px;
-box-shadow:0 0 20px rgba(59,130,246,0.3);
-}
-
-button {
-margin-top:20px;
-padding:14px 22px;
-border:none;
-border-radius:12px;
-background:var(--accent);
-color:white;
-cursor:pointer;
-}
-
-button:disabled {
-background:var(--card);
-}
-
-.token {
-position:fixed;
-bottom:20px;
-left:50%;
-transform:translateX(-50%);
-font-size:36px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<div class="nav">
-<div class="nav-spacer"></div>
-
-<div class="nav-center">
-<a href="index.html">Home</a>
-<a href="Games.html">Games</a>
-<a href="DailyRewards.html">Daily Rewards</a>
-<a href="shop.html">Shop</a>
-<a href="settings.html">Settings</a>
-<a href="login.html">Login</a>
-</div>
-
-<div class="user-box" id="userBox"></div>
-</div>
-
-<div class="main">
-<div class="box">
-<h2>Daily Reward</h2>
-<p>+5 Tokens every 24 hours</p>
-<button id="btn">Claim</button>
-<p id="msg"></p>
-</div>
-</div>
-
-</div>
-
-<div class="token" id="tokens">🪙 0</div>
-
-<!-- 🎧 MUSIC ENGINE -->
-<script src="music-engine.js"></script>
-
-<script>
 
 /* =========================
-   FIXED USER SYSTEM
+   DAILY REWARDS - FULL SYSTEM CONNECTED
+   (uses GLOBAL user-system.js state)
 ========================= */
 
-function getUsers(){
-return JSON.parse(localStorage.getItem("users")) || {};
+/* SAFETY: get global user */
+function getCurrentUser(){
+    return localStorage.getItem("currentUser") || null;
 }
 
-let currentUser = localStorage.getItem("currentUser");
-
+/* ELEMENTS */
 let btn = document.getElementById("btn");
 let msg = document.getElementById("msg");
+let tokenEl = document.getElementById("tokens");
+let userBox = document.getElementById("userBox");
 
-const cooldown = 86400000;
+/* =========================
+   CONSTANTS
+========================= */
+const COOLDOWN = 24 * 60 * 60 * 1000; // 24h
 
-/* USER UI */
-function loadUser(){
+/* =========================
+   USER DISPLAY (FULL SAFE RENDER)
+========================= */
+function renderUser(){
 
-let users = getUsers();
-let box = document.getElementById("userBox");
+    let user = getCurrentUser();
 
-if(currentUser && users[currentUser]){
-box.innerHTML = `<img src="${users[currentUser].pfp}"> ${currentUser}`;
-} else {
-btn.disabled = true;
-msg.innerText = "Login required";
+    if(!user){
+        if(userBox){
+            userBox.innerHTML = `<a href="login.html">Login</a>`;
+        }
+
+        if(btn){
+            btn.disabled = true;
+        }
+
+        if(msg){
+            msg.innerText = "Login required to claim rewards";
+        }
+
+        return;
+    }
+
+    if(userBox){
+        userBox.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span>${user}</span>
+                <button onclick="logoutUser()" 
+                    style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;">
+                    Logout
+                </button>
+            </div>
+        `;
+    }
+
+    if(btn){
+        btn.disabled = false;
+    }
 }
-}
 
-/* TOKENS */
+/* =========================
+   TOKENS SYSTEM (GLOBAL SYNC FORMAT)
+========================= */
 function loadTokens(){
-if(!currentUser) return;
-let t = localStorage.getItem(currentUser+"_tokens") || 0;
-document.getElementById("tokens").innerText = "🪙 " + t;
+
+    let user = getCurrentUser();
+    if(!user || !tokenEl) return;
+
+    let tokens = parseInt(localStorage.getItem(user + "_tokens")) || 0;
+    tokenEl.innerText = "🪙 " + tokens;
 }
 
-/* CLAIM */
+/* =========================
+   CLAIM REWARD
+========================= */
 function claim(){
 
-if(!currentUser) return;
+    let user = getCurrentUser();
+    if(!user) return;
 
-let last = localStorage.getItem(currentUser+"_lastClaim");
+    let last = localStorage.getItem(user + "_lastClaim");
 
-if(last && Date.now() - last < cooldown){
-return;
+    if(last && (Date.now() - parseInt(last)) < COOLDOWN){
+        updateCooldown();
+        return;
+    }
+
+    let key = user + "_tokens";
+    let current = parseInt(localStorage.getItem(key)) || 0;
+
+    current += 5;
+
+    localStorage.setItem(key, current);
+    localStorage.setItem(user + "_lastClaim", Date.now());
+
+    msg.innerText = "Reward claimed: +5 🪙";
+
+    loadTokens();
+    updateCooldown();
+
+    /* GLOBAL SYNC EVENT */
+    localStorage.setItem("tokenSync", Date.now());
 }
 
-let t = parseInt(localStorage.getItem(currentUser+"_tokens")) || 0;
-t += 5;
+/* =========================
+   COOLDOWN SYSTEM (FULL UI CONTROL)
+========================= */
+function updateCooldown(){
 
-localStorage.setItem(currentUser+"_tokens", t);
-localStorage.setItem(currentUser+"_lastClaim", Date.now());
+    let user = getCurrentUser();
+    if(!user) return;
 
-msg.innerText = "Claimed!";
-loadTokens();
-check();
+    let last = localStorage.getItem(user + "_lastClaim");
+
+    if(!last){
+        btn.disabled = false;
+        msg.innerText = "Claim your daily reward!";
+        return;
+    }
+
+    let elapsed = Date.now() - parseInt(last);
+    let remaining = COOLDOWN - elapsed;
+
+    if(remaining > 0){
+
+        btn.disabled = true;
+
+        let hours = Math.floor(remaining / 3600000);
+        let minutes = Math.floor((remaining % 3600000) / 60000);
+        let seconds = Math.floor((remaining % 60000) / 1000);
+
+        msg.innerText = `Next reward in ${hours}h ${minutes}m ${seconds}s`;
+
+    } else {
+        btn.disabled = false;
+        msg.innerText = "Reward ready!";
+    }
 }
 
-/* COOLDOWN */
-function check(){
-let last = localStorage.getItem(currentUser+"_lastClaim");
-if(!last) return;
-
-let rem = cooldown - (Date.now() - last);
-
-if(rem > 0){
-btn.disabled = true;
-let h = Math.floor(rem / 3600000);
-let m = Math.floor((rem % 3600000) / 60000);
-msg.innerText = `Wait ${h}h ${m}m`;
-} else {
-btn.disabled = false;
-msg.innerText = "";
-}
-}
-
+/* =========================
+   CLICK HANDLER
+========================= */
 btn.onclick = claim;
 
-/* INIT */
-loadUser();
-loadTokens();
-check();
-setInterval(check, 60000);
+/* =========================
+   STORAGE SYNC (CRITICAL FOR MULTI PAGE)
+========================= */
+window.addEventListener("storage", (e) => {
+
+    if(e.key === "currentUser"){
+        renderUser();
+        loadTokens();
+        updateCooldown();
+    }
+
+    if(e.key && e.key.includes("_tokens")){
+        loadTokens();
+    }
+
+    if(e.key && e.key.includes("_lastClaim")){
+        updateCooldown();
+    }
+});
+
+/* =========================
+   GLOBAL LOGOUT SUPPORT
+========================= */
+function logoutUser(){
+    localStorage.removeItem("currentUser");
+    location.reload();
+}
+
+/* =========================
+   INIT (FULL SAFE BOOT)
+========================= */
+function initDailyRewards(){
+
+    renderUser();
+    loadTokens();
+    updateCooldown();
+
+    setInterval(updateCooldown, 1000); // live countdown feel
+}
+
+/* BOOT AFTER LOAD */
+document.addEventListener("DOMContentLoaded", initDailyRewards);
 
 </script>
-
 </body>
 </html>

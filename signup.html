@@ -8,7 +8,6 @@
 
 <script>
 function applyTheme(){
-
 let theme = localStorage.getItem("theme") || "dark";
 let root = document.documentElement;
 
@@ -35,7 +34,6 @@ root.style.setProperty("--card", "#3b0f42");
 root.style.setProperty("--accent", "#ff4fa3");
 root.style.setProperty("--text", "white");
 }
-
 }
 applyTheme();
 
@@ -46,97 +44,91 @@ if(e.key === "theme") applyTheme();
 
 <style>
 body{
-  margin:0;
-  font-family:Arial;
-  background:var(--bg);
-  color:var(--text);
-  display:flex;
-  justify-content:center;
+margin:0;
+font-family:Arial;
+background:var(--bg);
+color:var(--text);
+display:flex;
+justify-content:center;
 }
 
 .container{ width:100%; max-width:1200px; }
 
 .nav{
-  width:80%;
-  margin:20px auto;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:15px 30px;
-  border-radius:30px;
-  background:var(--panel);
-  box-shadow:0 0 20px rgba(59,130,246,0.4);
+width:80%;
+margin:20px auto;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:15px 30px;
+border-radius:30px;
+background:var(--panel);
+box-shadow:0 0 20px rgba(59,130,246,0.4);
 }
 
 .nav-center{
-  display:flex;
-  gap:40px;
-  justify-content:center;
-  flex:1;
+display:flex;
+gap:40px;
+justify-content:center;
+flex:1;
 }
 
 .nav a{
-  color:var(--text);
-  text-decoration:none;
-  font-size:18px;
-  padding:8px 14px;
-  border-radius:10px;
+color:var(--text);
+text-decoration:none;
+font-size:18px;
+padding:8px 14px;
+border-radius:10px;
 }
 
 .nav a:hover{ background:var(--card); }
 
+.user-box{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
 .main{ text-align:center; margin-top:80px; }
 
 .box{
-  display:inline-block;
-  padding:30px;
-  background:var(--panel);
-  border-radius:20px;
-  box-shadow:0 0 20px rgba(59,130,246,0.3);
-  min-width:320px;
+display:inline-block;
+padding:30px;
+background:var(--panel);
+border-radius:20px;
+box-shadow:0 0 20px rgba(59,130,246,0.3);
+min-width:320px;
 }
 
 input{
-  width:100%;
-  margin-top:10px;
-  padding:12px;
-  border:none;
-  border-radius:10px;
-  background:var(--card);
-  color:var(--text);
+width:100%;
+margin-top:10px;
+padding:12px;
+border:none;
+border-radius:10px;
+background:var(--card);
+color:var(--text);
 }
 
 button{
-  margin-top:15px;
-  padding:14px;
-  width:100%;
-  border:none;
-  border-radius:12px;
-  background:var(--accent);
-  color:white;
-  cursor:pointer;
-}
-
-input[type="file"]{
-  display:block;
-  margin-top:15px;
-  padding:10px;
-  width:100%;
-  background:var(--card);
-  border:2px solid var(--accent);
-  border-radius:10px;
-  cursor:pointer;
-  color:var(--text);
+margin-top:15px;
+padding:14px;
+width:100%;
+border:none;
+border-radius:12px;
+background:var(--accent);
+color:white;
+cursor:pointer;
 }
 
 .logout-btn{ background:#ef4444; margin-top:10px; }
 
 .token{
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  font-size:32px;
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+font-size:32px;
 }
 
 .file-label{ margin-top:15px; display:block; text-align:left; }
@@ -153,16 +145,14 @@ input[type="file"]{
 
 <div class="nav-center">
 <a href="index.html">Home</a>
-<a href="music.html">Music</a>
+<a href="Games.html">Games</a>
 <a href="DailyRewards.html">Daily Rewards</a>
 <a href="settings.html">Settings</a>
-<a href="tones.html">Tones</a>
 <a href="login.html">Login</a>
-<a href="Games.html">Games</a>
 <a href="shop.html">Shop</a>
 </div>
 
-<div></div>
+<div class="user-box" id="userBox"></div>
 </div>
 
 <div class="main">
@@ -182,7 +172,6 @@ input[type="file"]{
 <p id="fileName">No file selected</p>
 
 <button onclick="signup()">Create Account</button>
-<button id="logoutBtn" class="logout-btn" onclick="logout()" style="display:none;">Logout</button>
 
 <p id="msg"></p>
 
@@ -191,115 +180,134 @@ input[type="file"]{
 
 </div>
 
-<div class="token">🪙 0</div>
+<div class="token" id="tokens">🪙 0</div>
 
 <script>
+
+/* =========================
+   GLOBAL USER SYSTEM
+========================= */
+let currentUser = localStorage.getItem("currentUser");
+
+function loadUserUI(){
+let box = document.getElementById("userBox");
+
+if(!box) return;
+
+if(currentUser){
+box.innerHTML = `
+<span>${currentUser}</span>
+<button onclick="logoutUser()" 
+style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+Logout
+</button>
+`;
+} else {
+box.innerHTML = `<a href="login.html">Login</a>`;
+}
+}
+
+function logoutUser(){
+localStorage.removeItem("currentUser");
+location.reload();
+}
+
+/* TOKENS */
+function loadTokens(){
+let el = document.getElementById("tokens");
+if(!el || !currentUser) return;
+
+el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+}
+
+/* =========================
+   FILE NAME DISPLAY
+========================= */
 document.getElementById("pfpFile").addEventListener("change", function(){
-  let file = this.files[0];
-  if(file){
-    document.getElementById("fileName").innerText = "Selected: " + file.name;
-  } else {
-    document.getElementById("fileName").innerText = "No file selected";
-  }
+let file = this.files[0];
+document.getElementById("fileName").innerText =
+file ? "Selected: " + file.name : "No file selected";
 });
 
-let currentUser = localStorage.getItem("currentUser");
-if(currentUser){
-  document.getElementById("logoutBtn").style.display = "block";
-}
-
-function logout(){
-  localStorage.removeItem("currentUser");
-  location.reload();
-}
-
-/* FILE → BASE64 */
+/* =========================
+   FILE → BASE64
+========================= */
 function fileToAvatarDataUrl(file, done){
-  let reader = new FileReader();
-  reader.onload = function(e){
-    let img = new Image();
-    img.onload = function(){
-      let maxSize = 128;
-      let scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-      let w = Math.round(img.width * scale);
-      let h = Math.round(img.height * scale);
-
-      let canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-
-      let ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, w, h);
-
-      done(canvas.toDataURL("image/jpeg", 0.8));
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+let reader = new FileReader();
+reader.onload = function(e){
+let img = new Image();
+img.onload = function(){
+let canvas = document.createElement("canvas");
+canvas.width = 128;
+canvas.height = 128;
+let ctx = canvas.getContext("2d");
+ctx.drawImage(img,0,0,128,128);
+done(canvas.toDataURL("image/jpeg",0.8));
+};
+img.src = e.target.result;
+};
+reader.readAsDataURL(file);
 }
 
-/* SIGNUP */
+/* =========================
+   SIGNUP
+========================= */
 function signup(){
 
-  let u = document.getElementById("username").value;
-  let p = document.getElementById("password").value;
-  let urlPic = document.getElementById("pfp").value;
-  let file = document.getElementById("pfpFile").files[0];
+let u = document.getElementById("username").value;
+let p = document.getElementById("password").value;
+let urlPic = document.getElementById("pfp").value;
+let file = document.getElementById("pfpFile").files[0];
 
-  if(!u || !p){
-    document.getElementById("msg").innerText = "Fill everything";
-    return;
-  }
-
-  if(file){
-    fileToAvatarDataUrl(file, function(result){
-      finishSignup(u, p, result);
-    });
-  } else {
-    finishSignup(u, p, urlPic || "https://via.placeholder.com/100");
-  }
+if(!u || !p){
+document.getElementById("msg").innerText = "Fill everything";
+return;
 }
 
-/* FINAL FIXED VERSION */
-async function finishSignup(username, password, pfp){
-
-  try {
-    const response = await fetch("/api/users/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        username: username,
-        password: password,
-        pfp: pfp
-      })
-    });
-
-    let result;
-
-    try {
-      result = await response.json();
-    } catch {
-      document.getElementById("msg").innerText = "Server error (invalid response)";
-      return;
-    }
-
-    if(response.ok && result.success){
-      localStorage.setItem("currentUser", username);
-      localStorage.setItem(username + "_tokens", 0);
-      location.href = "index.html";
-    } else {
-      document.getElementById("msg").innerText =
-        result?.error || "Signup failed";
-    }
-
-  } catch(err){
-    document.getElementById("msg").innerText =
-      "Cannot connect to server (Render may be sleeping)";
-    console.error(err);
-  }
+if(file){
+fileToAvatarDataUrl(file,(img)=>{
+finishSignup(u,p,img);
+});
+}else{
+finishSignup(u,p,urlPic || "https://via.placeholder.com/100");
 }
+}
+
+async function finishSignup(username,password,pfp){
+
+try{
+let res = await fetch("/api/users/signup",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username,password,pfp})
+});
+
+let data = await res.json();
+
+if(res.ok && data.success){
+localStorage.setItem("currentUser", username);
+localStorage.setItem(username+"_tokens", 0);
+location.href="index.html";
+}else{
+document.getElementById("msg").innerText =
+data.error || "Signup failed";
+}
+
+}catch(err){
+document.getElementById("msg").innerText =
+"Server offline";
+console.error(err);
+}
+}
+
+/* =========================
+   INIT
+========================= */
+document.addEventListener("DOMContentLoaded",()=>{
+loadUserUI();
+loadTokens();
+});
+
 </script>
 
 </body>
