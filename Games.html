@@ -4,13 +4,21 @@
 <meta charset="UTF-8">
 <title>Games</title>
 
-<<script>
+<script>
 
-/* Initialize variables */
-let selectedIndex = 0;
+/* =========================
+   GLOBAL USER STATE
+========================= */
 let currentUser = localStorage.getItem("currentUser");
 
-/* STORAGE */
+/* =========================
+   INITIAL VARIABLES
+========================= */
+let selectedIndex = 0;
+
+/* =========================
+   STORAGE
+========================= */
 let games = JSON.parse(localStorage.getItem("games")) || new Array(50).fill(null);
 
 function saveGames(){
@@ -21,22 +29,26 @@ function canPlayGames(){
     return !!currentUser;
 }
 
-/* RENDER */
+/* =========================
+   RENDER
+========================= */
 function render(){
     let grid = document.getElementById("grid");
+    if(!grid) return;
+
     grid.innerHTML = "";
 
     games.forEach((g,i)=>{
 
-        if(!g && currentUser!=="Game_Master") return;
+        if(!g && currentUser !== "Game_Master") return;
 
         let div = document.createElement("div");
-        div.className="card";
+        div.className = "card";
 
         if(g){
             let locked = !canPlayGames();
 
-            div.innerHTML=`
+            div.innerHTML = `
                 <img src="${g.thumb}">
                 <h3>${g.name}</h3>
                 <p>👥 ${g.players||0}</p>
@@ -45,13 +57,13 @@ function render(){
                 </button>
             `;
         } else {
-            div.innerHTML=`<h3>Empty Slot</h3>`;
+            div.innerHTML = `<h3>Empty Slot</h3>`;
         }
 
         /* ADMIN PANEL */
-        if(currentUser==="Game_Master"){
+        if(currentUser === "Game_Master"){
             let admin = document.createElement("div");
-            admin.innerHTML=`
+            admin.innerHTML = `
                 <input placeholder="Game Name" id="name${i}">
                 <label class="label">Thumbnail Image</label>
                 <input type="file" id="thumb${i}">
@@ -67,14 +79,16 @@ function render(){
     });
 }
 
-/* SAVE SLOT */
+/* =========================
+   SAVE SLOT
+========================= */
 function saveSlot(i){
 
-    let name = document.getElementById("name"+i).value;
-    let thumbFile = document.getElementById("thumb"+i).files[0];
-    let files = document.getElementById("files"+i).files;
+    let name = document.getElementById("name"+i)?.value;
+    let thumbFile = document.getElementById("thumb"+i)?.files[0];
+    let files = document.getElementById("files"+i)?.files;
 
-    if(!thumbFile || files.length===0){
+    if(!thumbFile || !files || files.length === 0){
         alert("Upload thumbnail + folder");
         return;
     }
@@ -94,23 +108,23 @@ function saveSlot(i){
             reader.onload = function(ev){
                 gameFiles[f.webkitRelativePath] = ev.target.result;
                 loaded++;
-                if(loaded===total) finish();
+                if(loaded === total) finish();
             };
 
             reader.onerror = function(){
                 loaded++;
-                if(loaded===total) finish();
+                if(loaded === total) finish();
             };
 
             reader.readAsDataURL(f);
         }
 
         function finish(){
-            games[i]={
-                name:name || "Untitled Game",
-                players:0,
-                thumb:e.target.result,
-                files:gameFiles
+            games[i] = {
+                name: name || "Untitled Game",
+                players: 0,
+                thumb: e.target.result,
+                files: gameFiles
             };
             saveGames();
             render();
@@ -121,25 +135,29 @@ function saveSlot(i){
     thumbReader.readAsDataURL(thumbFile);
 }
 
-/* DELETE */
+/* =========================
+   DELETE
+========================= */
 function deleteSlot(i){
-    games[i]=null;
+    games[i] = null;
     saveGames();
     render();
 }
 
-/* PLAY */
+/* =========================
+   PLAY
+========================= */
 function play(i){
     let g = games[i];
     if(!g) return;
 
     if(!canPlayGames()){
         alert("Login required");
-        window.location.href="login.html";
+        window.location.href = "login.html";
         return;
     }
 
-    g.players=(g.players||0)+1;
+    g.players = (g.players || 0) + 1;
     saveGames();
     render();
 
@@ -151,96 +169,130 @@ function play(i){
         return;
     }
 
-    document.getElementById("gameFrame").src = main;
-    document.getElementById("gameOverlay").style.display="block";
+    let frame = document.getElementById("gameFrame");
+    let overlay = document.getElementById("gameOverlay");
+
+    if(frame && overlay){
+        frame.src = main;
+        overlay.style.display = "block";
+    }
 }
 
-/* AUTO PLAY */
+/* =========================
+   AUTO PLAY
+========================= */
 function autoPlayFromQuery(){
     let params = new URLSearchParams(window.location.search);
     let index = params.get("play");
-    if(index!==null){
-        let i=parseInt(index);
+
+    if(index !== null){
+        let i = parseInt(index);
         if(games[i]) play(i);
     }
 }
 
-/* RETURN */
-document.getElementById("returnBtn").onclick = function(){
-    document.getElementById("gameOverlay").style.display="none";
-    document.getElementById("gameFrame").src="";
-};
+/* =========================
+   RETURN BUTTON (SAFE)
+========================= */
+let returnBtn = document.getElementById("returnBtn");
 
-/* INIT */
+if(returnBtn){
+    returnBtn.onclick = function(){
+        let overlay = document.getElementById("gameOverlay");
+        let frame = document.getElementById("gameFrame");
+
+        if(overlay) overlay.style.display = "none";
+        if(frame) frame.src = "";
+    };
+}
+
+/* =========================
+   INIT
+========================= */
 render();
 autoPlayFromQuery();
 
-/* MUSIC */
+/* =========================
+   MUSIC SYSTEM (GLOBAL SYNC)
+========================= */
 let globalAudio;
 
 function initGlobalMusic(){
     if(window.globalAudio) return;
 
     globalAudio = new Audio();
-    globalAudio.loop=true;
+    globalAudio.loop = true;
 
-    let playlist = JSON.parse(localStorage.getItem("playlist"))||[];
-    let track = parseInt(localStorage.getItem("track"))||0;
+    let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
+    let track = parseInt(localStorage.getItem("track")) || 0;
+    let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
 
     if(playlist.length){
-        globalAudio.src = playlist[track].data || playlist[track];
-        globalAudio.currentTime = parseFloat(localStorage.getItem("musicTime"))||0;
+        let song = playlist[track];
+        globalAudio.src = song.data || song;
+        globalAudio.currentTime = parseFloat(localStorage.getItem("musicTime")) || 0;
+        globalAudio.volume = volume;
     }
 
-    if(localStorage.getItem("musicPlaying")==="true"){
+    if(localStorage.getItem("musicPlaying") === "true"){
         globalAudio.play().catch(()=>{});
     }
 
-    document.addEventListener("click",()=>{
+    document.addEventListener("click", ()=>{
         globalAudio.play().catch(()=>{});
-    },{once:true});
+    }, {once:true});
 
-    window.globalAudio=globalAudio;
+    window.globalAudio = globalAudio;
 
     setInterval(()=>{
-        if(globalAudio && !isNaN(globalAudio.currentTime)){
+        if(globalAudio.src && !isNaN(globalAudio.currentTime)){
             localStorage.setItem("musicTime", globalAudio.currentTime);
         }
-    },500);
+    }, 500);
 }
 
 initGlobalMusic();
 
-/* TOKEN RECEIVER */
+/* =========================
+   TOKEN SYSTEM
+========================= */
+let tokenEl = document.getElementById("tokens");
+
+if(tokenEl && currentUser){
+    let t = localStorage.getItem(currentUser+"_tokens") || 0;
+    tokenEl.innerText = "🪙 " + t;
+}
+
 window.addEventListener("message", function(e){
 
-    if(!e.data || e.data.type!=="clickSpeedGame") return;
+    if(!e.data || e.data.type !== "clickSpeedGame") return;
     if(!currentUser) return;
 
-    let current = parseInt(localStorage.getItem(currentUser+"_tokens"))||0;
+    let current = parseInt(localStorage.getItem(currentUser+"_tokens")) || 0;
 
-    if(e.data.action==="earned"){
-        let earned = parseInt(e.data.earned)||0;
-        if(earned>0){
-            current+=earned;
-            localStorage.setItem(currentUser+"_tokens",current);
-            document.getElementById("tokens").innerText="🪙 "+current;
+    if(e.data.action === "earned"){
+        let earned = parseInt(e.data.earned) || 0;
+
+        if(earned > 0){
+            current += earned;
+            localStorage.setItem(currentUser+"_tokens", current);
+
+            if(tokenEl){
+                tokenEl.innerText = "🪙 " + current;
+            }
+
             localStorage.setItem("tokenSync", Date.now());
         }
     }
-
 });
 
-/* USER DISPLAY */
+/* =========================
+   USER DISPLAY
+========================= */
 let userBox = document.getElementById("userBox");
+
 if(userBox && currentUser){
     userBox.innerHTML = `<span>${currentUser}</span>`;
-}
-
-/* ADMIN ACCESS */
-if(currentUser === "Game_Master"){
-    let adminPanels = document.querySelectorAll(".admin");
-    adminPanels.forEach(panel => panel.style.display = "block");
 }
 
 </script>

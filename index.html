@@ -4,237 +4,314 @@
 <meta charset="UTF-8">
 <title id="siteTitle">Home</title>
 
+<style>
+body{margin:0;font-family:Arial;background:#000;color:white;}
+
+/* NAV */
+.nav{
+width:80%;
+margin:20px auto;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 30px;
+border-radius:30px;
+background:#0a0a0a;
+box-shadow:0 0 20px rgba(59,130,246,0.4);
+}
+.nav-center{display:flex;gap:30px;margin:auto;}
+.nav a{color:white;text-decoration:none;padding:8px 14px;border-radius:10px;}
+.nav a:hover{background:#1f2937;}
+.user-box{display:flex;align-items:center;gap:10px;}
+
+/* MAIN */
+.main{width:80%;margin:auto;display:flex;gap:40px;}
+
+.left{width:260px;display:flex;flex-direction:column;gap:20px;}
+
+.box{
+background:#0a0a0a;
+border-radius:20px;
+padding:20px;
+box-shadow:0 0 15px rgba(59,130,246,0.2);
+}
+
+.logo-box{height:220px;display:flex;align-items:center;justify-content:center;}
+.logo-box img{width:180px;height:180px;border-radius:25px;background:#1f2937;}
+
+.center{flex:1;}
+.title{text-align:center;font-size:50px;margin-bottom:10px;}
+#sloganText{text-align:center;opacity:0.7;margin-bottom:20px;}
+
+.games-section{
+background:#0a0a0a;
+padding:20px;
+border-radius:20px;
+}
+
+.games{display:flex;gap:10px;margin-top:10px;}
+
+.game{
+flex:1;
+background:#1f2937;
+padding:15px;
+border-radius:10px;
+text-align:center;
+}
+
+.admin{
+display:none;
+margin-top:20px;
+background:#0a0a0a;
+padding:15px;
+border-radius:15px;
+}
+
+.token{
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+font-size:30px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- NAV -->
+<div class="nav">
+<div></div>
+
+<div class="nav-center">
+<a href="index.html">Home</a>
+<a href="Games.html">Games</a>
+<a href="DailyRewards.html">Daily Rewards</a>
+<a href="shop.html">Shop</a>
+<a href="settings.html">Settings</a>
+<a href="login.html">Login</a>
+</div>
+
+<div class="user-box" id="userBox"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<div class="left">
+<div class="box logo-box">
+<img id="logoImg" src="https://via.placeholder.com/200">
+</div>
+
+<div class="box">
+<h3>Updates</h3>
+<p id="updatesText">Loading...</p>
+</div>
+</div>
+
+<div class="center">
+
+<div class="title" id="siteName">Home</div>
+<div id="sloganText">Play. Learn. Repeat</div>
+
+<div class="games-section">
+<h2>Recommended Games</h2>
+
+<div class="games"></div>
+
+<div class="admin">
+<h3>Admin Panel (Game_Master Only)</h3>
+<input id="titleInput" placeholder="Title">
+<input id="sloganInput" placeholder="Slogan">
+<textarea id="updatesInput"></textarea>
+<input type="file" id="logoFile">
+<button onclick="save()">Save</button>
+</div>
+
+</div>
+
+</div>
+</div>
+
+<div class="token" id="tokens">🪙 0</div>
+
+<script src="music-engine.js"></script>
+<script src="user-helper.js"></script>
+
 <script>
 
-/* =========================
-   SAFE GLOBAL USER STATE
-========================= */
-let currentUser = localStorage.getItem("currentUser") || null;
+/* USER */
+let currentUser = localStorage.getItem("currentUser");
 
-/* =========================
-   GAME SYSTEM
-========================= */
+/* GAMES */
 function getTopGames(){
-    let games = JSON.parse(localStorage.getItem("games")) || [];
-    return games
-        .map((g, i) => ({...g, slotIndex:i}))
-        .filter(g => g && g.name)
-        .sort((a,b)=>(b.players||0)-(a.players||0))
-        .slice(0,4);
+let games = JSON.parse(localStorage.getItem("games")) || [];
+return games
+.map((g,i)=>({...g,slotIndex:i}))
+.filter(g=>g && g.name)
+.sort((a,b)=>(b.players||0)-(a.players||0))
+.slice(0,4);
 }
 
 function canPlayGames(){
-    return !!currentUser;
+return !!currentUser;
 }
 
-function openGame(slotIndex){
-    if(!canPlayGames()){
-        alert("Please log in or create an account to play games.");
-        window.location.href = "login.html";
-        return;
-    }
-    window.location.href = "Games.html?play=" + slotIndex;
+function openGame(i){
+if(!canPlayGames()){
+alert("Login required");
+window.location.href="login.html";
+return;
+}
+window.location.href="Games.html?play="+i;
 }
 
 function renderRecommendedGames(){
-    let gamesWrap = document.querySelector(".games");
-    if(!gamesWrap) return;
+let wrap=document.querySelector(".games");
+if(!wrap) return;
 
-    let topGames = getTopGames();
+let top=getTopGames();
 
-    if(topGames.length === 0){
-        gamesWrap.innerHTML = `
-            <div class="game">No games played yet</div>
-            <div class="game">No games played yet</div>
-            <div class="game">No games played yet</div>
-            <div class="game">No games played yet</div>
-        `;
-        return;
-    }
-
-    let cards = topGames.map((g, idx) => `
-        <div class="game">
-            <div><strong>#${idx+1} ${g.name}</strong></div>
-            <div style="margin-top:8px;">👥 ${g.players||0} plays</div>
-            <button style="margin-top:10px;padding:8px 12px;border:none;border-radius:8px;background:var(--accent);color:white;${canPlayGames() ? "cursor:pointer;" : "cursor:not-allowed;opacity:0.6;"}"
-            onclick="openGame(${g.slotIndex})"
-            ${canPlayGames() ? "" : "disabled"}>
-            ${canPlayGames() ? "Play" : "Login Required"}
-            </button>
-        </div>
-    `);
-
-    while(cards.length < 4){
-        cards.push(`<div class="game">Waiting for more games</div>`);
-    }
-
-    gamesWrap.innerHTML = cards.join("");
+if(top.length===0){
+wrap.innerHTML="<div>No games yet</div>";
+return;
 }
 
-/* =========================
-   SITE API SYSTEM (FIXED)
-========================= */
+wrap.innerHTML=top.map((g,i)=>`
+<div class="game">
+<strong>#${i+1} ${g.name}</strong>
+<p>👥 ${g.players||0}</p>
+<button onclick="openGame(${g.slotIndex})">
+${canPlayGames()?"Play":"Login Required"}
+</button>
+</div>
+`).join("");
+}
+
+/* SITE */
 async function loadSite(){
-    try {
-        const response = await fetch("/api/site");
-        const data = await response.json();
+try{
+let r=await fetch("/api/site");
+let d=await r.json();
 
-        apply({
-            title: data.title || "Home",
-            logo: data.logo || "https://via.placeholder.com/200",
-            updates: data.updates || "- Ready",
-            slogan: data.slogan || "Play. Learn. Repeat"
-        });
-
-    } catch(err){
-        console.error("Error loading site:", err);
-
-        apply({
-            title: "Home",
-            logo: "https://via.placeholder.com/200",
-            updates: "- Ready",
-            slogan: "Play. Learn. Repeat"
-        });
-    }
+apply({
+title:d.title||"Home",
+logo:d.logo||"https://via.placeholder.com/200",
+updates:d.updates||"- Ready",
+slogan:d.slogan||"Play. Learn. Repeat"
+});
+}catch{
+apply({
+title:"Home",
+logo:"https://via.placeholder.com/200",
+updates:"- Ready",
+slogan:"Play. Learn. Repeat"
+});
+}
 }
 
-/* SAFE APPLY (NO CRASHES) */
 function apply(d){
-    const siteName = document.getElementById("siteName");
-    const siteTitle = document.getElementById("siteTitle");
-    const logoImg = document.getElementById("logoImg");
-    const updatesText = document.getElementById("updatesText");
-    const sloganText = document.getElementById("sloganText");
+let el;
 
-    if(siteName) siteName.innerText = d.title;
-    if(siteTitle) siteTitle.innerText = d.title;
-    if(logoImg) logoImg.src = d.logo;
-    if(updatesText) updatesText.innerHTML = d.updates;
-    if(sloganText) sloganText.innerText = d.slogan;
+el=document.getElementById("siteName");
+if(el) el.innerText=d.title;
+
+el=document.getElementById("siteTitle");
+if(el) el.innerText=d.title;
+
+el=document.getElementById("logoImg");
+if(el) el.src=d.logo;
+
+el=document.getElementById("updatesText");
+if(el) el.innerHTML=d.updates;
+
+el=document.getElementById("sloganText");
+if(el) el.innerText=d.slogan;
 }
 
-/* =========================
-   ADMIN SAVE (FIXED)
-========================= */
+/* ADMIN SAVE */
 async function save(){
 
-    if(currentUser !== "Game_Master"){
-        alert("Only Game_Master can edit site settings");
-        return;
-    }
-
-    let title = document.getElementById("titleInput")?.value || "";
-    let updates = document.getElementById("updatesInput")?.value || "";
-    let slogan = document.getElementById("sloganInput")?.value || "";
-
-    let file = document.getElementById("logoFile")?.files[0];
-    let logo = null;
-
-    if(file){
-        logo = await new Promise((resolve) => {
-            let reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    try {
-        const response = await fetch("/api/site", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                user: "Game_Master",
-                title,
-                logo: logo || document.getElementById("logoImg")?.src,
-                updates,
-                slogan
-            })
-        });
-
-        const result = await response.json();
-
-        if(result.success){
-            alert("Site updated!");
-            loadSite();
-        } else {
-            alert("Failed: " + result.error);
-        }
-
-    } catch(err){
-        alert("Error: " + err.message);
-    }
+if(currentUser!=="Game_Master"){
+alert("Admin only");
+return;
 }
 
-/* =========================
-   INIT
-========================= */
-(async function(){
-    await loadSite();
-    renderRecommendedGames();
-})();
+let title=document.getElementById("titleInput").value;
+let updates=document.getElementById("updatesInput").value;
+let slogan=document.getElementById("sloganInput").value;
 
-window.addEventListener("storage", (e)=>{
-    if(e.key === "games") renderRecommendedGames();
+let file=document.getElementById("logoFile").files[0];
+let logo=null;
+
+if(file){
+logo=await new Promise(res=>{
+let r=new FileReader();
+r.onload=e=>res(e.target.result);
+r.readAsDataURL(file);
+});
+}
+
+await fetch("/api/site",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+user:"Game_Master",
+title,
+logo:logo||document.getElementById("logoImg").src,
+updates,
+slogan
+})
 });
 
-window.addEventListener("focus", renderRecommendedGames);
-
-/* =========================
-   MUSIC ENGINE (UNCHANGED SAFE)
-========================= */
-let globalAudio;
-
-function initGlobalMusic(){
-    if(window.globalAudio) return;
-
-    globalAudio = new Audio();
-    globalAudio.loop = true;
-
-    let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
-    let track = parseInt(localStorage.getItem("track")) || 0;
-    let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
-
-    if(playlist.length){
-        let song = playlist[track];
-        globalAudio.src = song.data || song;
-        globalAudio.volume = volume;
-
-        let savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
-        globalAudio.currentTime = savedTime;
-    }
-
-    if(localStorage.getItem("musicPlaying") === "true"){
-        globalAudio.play().catch(()=>{});
-    }
-
-    document.addEventListener("click", ()=>{globalAudio.play().catch(()=>{});},{once:true});
-
-    window.globalAudio = globalAudio;
-
-    setInterval(()=>{
-        if(globalAudio.src && !isNaN(globalAudio.currentTime)){
-            localStorage.setItem("track", track);
-            localStorage.setItem("musicTime", globalAudio.currentTime);
-        }
-    },500);
+alert("Saved");
+loadSite();
 }
 
-initGlobalMusic();
+/* MUSIC */
+(function(){
+if(window.globalAudio) return;
 
-/* =========================
-   USER DISPLAY
-========================= */
-let userBox = document.getElementById("userBox");
+let a=new Audio();
+a.loop=true;
 
+let p=JSON.parse(localStorage.getItem("playlist"))||[];
+let t=parseInt(localStorage.getItem("track"))||0;
+
+if(p.length){
+a.src=p[t].data||p[t];
+a.currentTime=parseFloat(localStorage.getItem("musicTime"))||0;
+}
+
+if(localStorage.getItem("musicPlaying")==="true"){
+a.play().catch(()=>{});
+}
+
+document.addEventListener("click",()=>a.play().catch(()=>{}),{once:true});
+
+setInterval(()=>{
+localStorage.setItem("musicTime",a.currentTime);
+},500);
+
+window.globalAudio=a;
+})();
+
+/* USER UI */
+let userBox=document.getElementById("userBox");
 if(userBox && currentUser){
-    userBox.innerHTML = `<span>${currentUser}</span>`;
+userBox.innerHTML=`<span>${currentUser}</span>`;
 }
 
-/* ADMIN PANEL SHOW */
-if(currentUser === "Game_Master"){
-    document.querySelectorAll(".admin")
-        .forEach(p => p.style.display = "block");
+if(currentUser==="Game_Master"){
+document.querySelectorAll(".admin")
+.forEach(p=>p.style.display="block");
 }
+
+/* INIT FIX (IMPORTANT) */
+document.addEventListener("DOMContentLoaded", async ()=>{
+await loadSite();
+renderRecommendedGames();
+});
 
 </script>
 
