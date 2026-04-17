@@ -6,6 +6,14 @@
 
 <script>
 
+/* =========================
+   SAFE GLOBAL USER STATE
+========================= */
+let currentUser = localStorage.getItem("currentUser") || null;
+
+/* =========================
+   GAME SYSTEM
+========================= */
 function getTopGames(){
     let games = JSON.parse(localStorage.getItem("games")) || [];
     return games
@@ -16,8 +24,7 @@ function getTopGames(){
 }
 
 function canPlayGames(){
-    let users = getUsers();
-    return !!(currentUser && users[currentUser]);
+    return !!currentUser;
 }
 
 function openGame(slotIndex){
@@ -35,7 +42,7 @@ function renderRecommendedGames(){
 
     let topGames = getTopGames();
 
-    if(topGames.length===0){
+    if(topGames.length === 0){
         gamesWrap.innerHTML = `
             <div class="game">No games played yet</div>
             <div class="game">No games played yet</div>
@@ -49,8 +56,10 @@ function renderRecommendedGames(){
         <div class="game">
             <div><strong>#${idx+1} ${g.name}</strong></div>
             <div style="margin-top:8px;">👥 ${g.players||0} plays</div>
-            <button style="margin-top:10px;padding:8px 12px;border:none;border-radius:8px;background:var(--accent);color:white;${canPlayGames() ? "cursor:pointer;" : "cursor:not-allowed;opacity:0.6;"}" onclick="openGame(${g.slotIndex})" ${canPlayGames() ? "" : "disabled"}>
-                ${canPlayGames() ? "Play" : "Login Required"}
+            <button style="margin-top:10px;padding:8px 12px;border:none;border-radius:8px;background:var(--accent);color:white;${canPlayGames() ? "cursor:pointer;" : "cursor:not-allowed;opacity:0.6;"}"
+            onclick="openGame(${g.slotIndex})"
+            ${canPlayGames() ? "" : "disabled"}>
+            ${canPlayGames() ? "Play" : "Login Required"}
             </button>
         </div>
     `);
@@ -63,21 +72,20 @@ function renderRecommendedGames(){
 }
 
 /* =========================
-   SITE SYSTEM (SERVER API)
+   SITE API SYSTEM (FIXED)
 ========================= */
 async function loadSite(){
     try {
-        const response = await fetch("http://localhost:3000/api/site");
+        const response = await fetch("/api/site");
         const data = await response.json();
 
-        if(data){
-            apply({
-                title: data.title || "Home",
-                logo: data.logo || "https://via.placeholder.com/200",
-                updates: data.updates || "- Ready",
-                slogan: data.slogan || "Play. Learn. Repeat"
-            });
-        }
+        apply({
+            title: data.title || "Home",
+            logo: data.logo || "https://via.placeholder.com/200",
+            updates: data.updates || "- Ready",
+            slogan: data.slogan || "Play. Learn. Repeat"
+        });
+
     } catch(err){
         console.error("Error loading site:", err);
 
@@ -90,29 +98,36 @@ async function loadSite(){
     }
 }
 
+/* SAFE APPLY (NO CRASHES) */
 function apply(d){
-    document.getElementById("siteName").innerText=d.title;
-    document.getElementById("siteTitle").innerText=d.title;
-    document.getElementById("logoImg").src=d.logo;
-    document.getElementById("updatesText").innerHTML=d.updates;
-    document.getElementById("sloganText").innerText=d.slogan;
+    const siteName = document.getElementById("siteName");
+    const siteTitle = document.getElementById("siteTitle");
+    const logoImg = document.getElementById("logoImg");
+    const updatesText = document.getElementById("updatesText");
+    const sloganText = document.getElementById("sloganText");
+
+    if(siteName) siteName.innerText = d.title;
+    if(siteTitle) siteTitle.innerText = d.title;
+    if(logoImg) logoImg.src = d.logo;
+    if(updatesText) updatesText.innerHTML = d.updates;
+    if(sloganText) sloganText.innerText = d.slogan;
 }
 
 /* =========================
-   ADMIN SAVE (ONLY FIXED LOGIC)
+   ADMIN SAVE (FIXED)
 ========================= */
 async function save(){
 
-    if(currentUser !== "Game_Master") {
+    if(currentUser !== "Game_Master"){
         alert("Only Game_Master can edit site settings");
         return;
     }
 
-    let title = document.getElementById("titleInput").value;
-    let updates = document.getElementById("updatesInput").value;
-    let slogan = document.getElementById("sloganInput").value;
+    let title = document.getElementById("titleInput")?.value || "";
+    let updates = document.getElementById("updatesInput")?.value || "";
+    let slogan = document.getElementById("sloganInput")?.value || "";
 
-    let file = document.getElementById("logoFile").files[0];
+    let file = document.getElementById("logoFile")?.files[0];
     let logo = null;
 
     if(file){
@@ -124,17 +139,15 @@ async function save(){
     }
 
     try {
-        const response = await fetch("http://localhost:3000/api/site", {
+        const response = await fetch("/api/site", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 user: "Game_Master",
-                title: title,
-                logo: logo || document.getElementById("logoImg").src,
-                updates: updates,
-                slogan: slogan
+                title,
+                logo: logo || document.getElementById("logoImg")?.src,
+                updates,
+                slogan
             })
         });
 
@@ -144,7 +157,7 @@ async function save(){
             alert("Site updated!");
             loadSite();
         } else {
-            alert("Failed to update: " + result.error);
+            alert("Failed: " + result.error);
         }
 
     } catch(err){
@@ -160,14 +173,14 @@ async function save(){
     renderRecommendedGames();
 })();
 
-window.addEventListener("storage",(e)=>{
-    if(e.key==="games") renderRecommendedGames();
+window.addEventListener("storage", (e)=>{
+    if(e.key === "games") renderRecommendedGames();
 });
 
 window.addEventListener("focus", renderRecommendedGames);
 
 /* =========================
-   MUSIC SYSTEM (UNCHANGED)
+   MUSIC ENGINE (UNCHANGED SAFE)
 ========================= */
 let globalAudio;
 
@@ -177,24 +190,25 @@ function initGlobalMusic(){
     globalAudio = new Audio();
     globalAudio.loop = true;
 
-    let playlist = JSON.parse(localStorage.getItem("playlist"))||[];
-    let track = parseInt(localStorage.getItem("track"))||0;
-    let volume = parseFloat(localStorage.getItem("volume"))||0.5;
+    let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
+    let track = parseInt(localStorage.getItem("track")) || 0;
+    let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
 
     if(playlist.length){
         let song = playlist[track];
-        globalAudio.src = song.data||song;
+        globalAudio.src = song.data || song;
         globalAudio.volume = volume;
 
-        let savedTime = parseFloat(localStorage.getItem("musicTime"))||0;
+        let savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
         globalAudio.currentTime = savedTime;
     }
 
-    if(localStorage.getItem("musicPlaying")==="true"){
+    if(localStorage.getItem("musicPlaying") === "true"){
         globalAudio.play().catch(()=>{});
     }
 
     document.addEventListener("click", ()=>{globalAudio.play().catch(()=>{});},{once:true});
+
     window.globalAudio = globalAudio;
 
     setInterval(()=>{
@@ -208,18 +222,18 @@ function initGlobalMusic(){
 initGlobalMusic();
 
 /* =========================
-   USER SYSTEM (UNCHANGED)
+   USER DISPLAY
 ========================= */
-let currentUser = localStorage.getItem("currentUser");
-
 let userBox = document.getElementById("userBox");
+
 if(userBox && currentUser){
     userBox.innerHTML = `<span>${currentUser}</span>`;
 }
 
+/* ADMIN PANEL SHOW */
 if(currentUser === "Game_Master"){
-    let adminPanels = document.querySelectorAll(".admin");
-    adminPanels.forEach(panel => panel.style.display = "block");
+    document.querySelectorAll(".admin")
+        .forEach(p => p.style.display = "block");
 }
 
 </script>
