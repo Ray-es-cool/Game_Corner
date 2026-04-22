@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <title>Signup</title>
 
-<script src="music-engine.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
 
 <script>
 function applyTheme(){
@@ -108,6 +112,7 @@ border:none;
 border-radius:10px;
 background:var(--card);
 color:var(--text);
+box-sizing:border-box;
 }
 
 button{
@@ -159,7 +164,7 @@ font-size:32px;
 
 <div class="box">
 
-<h2>Signup</h2>
+<h2>Create Account</h2>
 
 <input id="username" placeholder="Username">
 <input id="password" type="password" placeholder="Password">
@@ -185,7 +190,7 @@ font-size:32px;
 <script>
 
 /* =========================
-   GLOBAL USER SYSTEM
+   USER SYSTEM
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
 
@@ -197,7 +202,7 @@ if(!box) return;
 if(currentUser){
 box.innerHTML = `
 <span>${currentUser}</span>
-<button onclick="logoutUser()" 
+<button onclick="logoutUser()"
 style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
 Logout
 </button>
@@ -208,6 +213,7 @@ box.innerHTML = `<a href="login.html">Login</a>`;
 }
 
 function logoutUser(){
+if(window.FireDB) FireDB.logout();
 localStorage.removeItem("currentUser");
 location.reload();
 }
@@ -252,7 +258,7 @@ reader.readAsDataURL(file);
 /* =========================
    SIGNUP
 ========================= */
-function signup(){
+async function signup(){
 
 let u = document.getElementById("username").value;
 let p = document.getElementById("password").value;
@@ -260,43 +266,43 @@ let urlPic = document.getElementById("pfp").value;
 let file = document.getElementById("pfpFile").files[0];
 
 if(!u || !p){
-document.getElementById("msg").innerText = "Fill everything";
+document.getElementById("msg").innerText = "Fill all fields";
 return;
 }
 
-if(file){
-fileToAvatarDataUrl(file,(img)=>{
-finishSignup(u,p,img);
-});
-}else{
-finishSignup(u,p,urlPic || "https://via.placeholder.com/100");
-}
-}
+let pfp = urlPic || "https://via.placeholder.com/100";
 
-async function finishSignup(username,password,pfp){
+if(file){
+await new Promise(resolve => {
+fileToAvatarDataUrl(file, (img) => {
+pfp = img;
+resolve();
+});
+});
+}
 
 try{
-let res = await fetch("/api/users/signup",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({username,password,pfp})
-});
+const result = await FireDB.createUser(u, p, pfp);
 
-let data = await res.json();
-
-if(res.ok && data.success){
-localStorage.setItem("currentUser", username);
-localStorage.setItem(username+"_tokens", 0);
+if(result){
+localStorage.setItem("currentUser", u);
+localStorage.setItem("currentUid", result.uid);
+localStorage.setItem(u+"_tokens", 0);
+localStorage.setItem("userSync", Date.now());
 location.href="index.html";
 }else{
-document.getElementById("msg").innerText =
-data.error || "Signup failed";
+document.getElementById("msg").innerText = "Signup failed";
 }
 
 }catch(err){
-document.getElementById("msg").innerText =
-"Server offline";
 console.error(err);
+if(err.code === 'auth/email-already-in-use'){
+document.getElementById("msg").innerText = "Username already taken";
+}else if(err.code === 'auth/weak-password'){
+document.getElementById("msg").innerText = "Password must be at least 6 characters";
+}else{
+document.getElementById("msg").innerText = "Cannot connect - check Firebase config";
+}
 }
 }
 

@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <title>Settings</title>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
+
 <script>
 function applyTheme(){
 
@@ -38,7 +44,6 @@ root.style.setProperty("--text", "white");
 }
 
 }
-
 applyTheme();
 
 window.addEventListener("storage",(e)=>{
@@ -138,6 +143,10 @@ color:var(--text);
 cursor:pointer;
 }
 
+.setting-btn:hover{
+opacity:0.9;
+}
+
 input[type="range"]{
 width:100%;
 margin-top:15px;
@@ -149,6 +158,45 @@ bottom:20px;
 left:50%;
 transform:translateX(-50%);
 font-size:32px;
+}
+
+.theme-selector{
+display:flex;
+gap:10px;
+justify-content:center;
+margin-top:15px;
+}
+
+.theme-btn{
+flex:1;
+padding:15px;
+border:none;
+border-radius:10px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.theme-btn.dark{
+background:#1a1a2e;
+color:white;
+}
+
+.theme-btn.light{
+background:#f0f0f0;
+color:#333;
+}
+
+.theme-btn.pink{
+background:#2d1b33;
+color:#ff69b4;
+}
+
+.theme-btn.active{
+border:3px solid var(--accent);
+}
+
+h3{
+margin-top:20px;
 }
 </style>
 </head>
@@ -166,7 +214,7 @@ font-size:32px;
 <a href="DailyRewards.html">Daily Rewards</a>
 <a href="shop.html">Shop</a>
 <a href="settings.html">Settings</a>
-<a href="login.html">Login</a>
+<a href="music.html">Music</a>
 </div>
 
 <div class="nav-right">
@@ -181,101 +229,135 @@ font-size:32px;
 
 <h1>Settings</h1>
 
-<button class="setting-btn" onclick="goMusic()">Music</button>
-<button class="setting-btn" onclick="goTones()">Colour / Tones</button>
-
-<br><br>
+<h3>Theme</h3>
+<div class="theme-selector">
+    <button class="theme-btn dark" onclick="setTheme('dark')">Dark</button>
+    <button class="theme-btn light" onclick="setTheme('light')">Light</button>
+    <button class="theme-btn pink" onclick="setTheme('pink')">Pink</button>
+</div>
 
 <h3>Music Volume</h3>
 <input type="range" min="0" max="1" step="0.01" id="volume">
+
+<br><br>
+
+<button class="setting-btn" onclick="goMusic()">🎵 Music Player</button>
 
 </div>
 </div>
 
 <div class="token" id="tokens">🪙 0</div>
 
-<!-- 🎧 MUSIC ENGINE -->
 <script src="music-engine.js"></script>
 
 <script>
 
 /* =========================
-   FIXED USER SYSTEM
+   USER SYSTEM
 ========================= */
-
-function getUsers(){
-return JSON.parse(localStorage.getItem("users")) || {};
-}
-
 let currentUser = localStorage.getItem("currentUser");
 
 /* USER UI */
 function loadUser(){
+    let box = document.getElementById("userBox");
+    if(!box || !currentUser) return;
 
-let users = getUsers();
-let box=document.getElementById("userBox");
-
-if(currentUser && users[currentUser]){
-box.innerHTML=`<img src="${users[currentUser].pfp}">${currentUser}`;
+    box.innerHTML = `
+        <span>${currentUser}</span>
+        <button onclick="logoutUser()"
+        style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+        Logout
+        </button>
+    `;
 }
 
+function logoutUser(){
+    if(window.FireDB) FireDB.logout();
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUid");
+    currentUser = null;
+    localStorage.setItem("userSync", Date.now());
+    location.reload();
 }
 
 /* TOKENS */
 function loadTokens(){
-if(!currentUser) return;
-let t = localStorage.getItem(currentUser+"_tokens") || 0;
-document.getElementById("tokens").innerText="🪙 "+t;
+    if(!currentUser) return;
+    let t = localStorage.getItem(currentUser+"_tokens") || 0;
+    document.getElementById("tokens").innerText = "🪙 " + t;
 }
 
-/* NAV */
+/* NAVIGATION */
 function goMusic(){
-window.location.href = "music.html";
+    window.location.href = "music.html";
 }
 
-function goTones(){
-window.location.href = "Tones.html";
+/* THEME */
+function setTheme(theme){
+    localStorage.setItem("theme", theme);
+    applyTheme();
+    localStorage.setItem("themeSync", Date.now());
+
+    // Update active state
+    document.querySelectorAll(".theme-btn").forEach(btn => {
+        btn.classList.remove("active");
+    });
+    document.querySelector(".theme-btn." + theme).classList.add("active");
 }
 
 /* VOLUME */
 const slider = document.getElementById("volume");
 
 function syncVolume(){
+    let v = localStorage.getItem("volume");
+    if(v === null) v = 0.5;
 
-let v = localStorage.getItem("volume");
+    if(slider) slider.value = v;
 
-if(v === null) v = 0.5;
-
-slider.value = v;
-
-if(window.globalAudio){
-window.globalAudio.volume = parseFloat(v);
+    if(window.globalAudio){
+        window.globalAudio.volume = parseFloat(v);
+    }
 }
 
+if(slider){
+    slider.addEventListener("input",(e)=>{
+        let v = parseFloat(e.target.value);
+        localStorage.setItem("volume", v);
+
+        if(window.globalAudio){
+            window.globalAudio.volume = v;
+        }
+    });
 }
-
-slider.addEventListener("input",(e)=>{
-
-let v = parseFloat(e.target.value);
-
-localStorage.setItem("volume", v);
-
-if(window.globalAudio){
-window.globalAudio.volume = v;
-}
-
-});
 
 window.addEventListener("storage",(e)=>{
-if(e.key === "volume"){
-syncVolume();
-}
+    if(e.key === "volume"){
+        syncVolume();
+    }
+    if(e.key === "theme"){
+        applyTheme();
+    }
+    if(e.key === "userSync"){
+        location.reload();
+    }
+    if(e.key === "tokenSync"){
+        loadTokens();
+    }
 });
 
 /* INIT */
-loadUser();
-loadTokens();
-syncVolume();
+document.addEventListener("DOMContentLoaded", ()=>{
+    loadUser();
+    loadTokens();
+    syncVolume();
+
+    // Set active theme button
+    let currentTheme = localStorage.getItem("theme") || "dark";
+    document.querySelectorAll(".theme-btn").forEach(btn => {
+        btn.classList.remove("active");
+    });
+    document.querySelector(".theme-btn." + currentTheme).classList.add("active");
+});
 
 </script>
 

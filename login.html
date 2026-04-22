@@ -4,15 +4,20 @@
 <meta charset="UTF-8">
 <title>Login</title>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
+
 <script>
 
 let isLogin = true;
 
 /* =========================
-   THEME SYSTEM (SAFE)
+   THEME SYSTEM
 ========================= */
 function applyTheme(){
-
     let theme = localStorage.getItem("theme") || "dark";
     let root = document.documentElement;
 
@@ -40,7 +45,6 @@ function applyTheme(){
         root.style.setProperty("--text", "white");
     }
 }
-
 applyTheme();
 
 window.addEventListener("storage", (e)=>{
@@ -51,11 +55,10 @@ window.addEventListener("storage", (e)=>{
    MODE SWITCH
 ========================= */
 function toggleMode(){
-
     isLogin = !isLogin;
 
     let title = document.getElementById("title");
-    let btn = document.querySelector("button");
+    let btn = document.querySelector("button[type='button']");
     let switchText = document.getElementById("switchText");
 
     if(title) title.innerText = isLogin ? "Login" : "Register";
@@ -72,7 +75,6 @@ function toggleMode(){
    LOGIN / REGISTER
 ========================= */
 async function submit(){
-
     let user = document.getElementById("username")?.value;
     let pass = document.getElementById("password")?.value;
     let msg = document.getElementById("msg");
@@ -88,77 +90,50 @@ async function submit(){
        LOGIN
     ========================= */
     if(isLogin){
-
         try {
+            const result = await FireDB.login(user, pass);
 
-            const res = await fetch("/api/users/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: user, password: pass })
-            });
-
-            let result;
-
-            try {
-                result = await res.json();
-            } catch {
-                msg.innerText = "Server response error";
-                return;
-            }
-
-            if(res.ok && result.success){
-
+            if(result){
                 localStorage.setItem("currentUser", user);
+                localStorage.setItem("currentUid", result.uid);
                 localStorage.setItem(user + "_tokens", result.tokens || 0);
 
-                /* 🔥 GLOBAL SYNC */
+                // Sync across all pages
                 localStorage.setItem("userSync", Date.now());
 
-                /* FIX: prevents blank reload issue */
                 window.location.href = "index.html";
-
             } else {
-                msg.innerText = result?.error || "Invalid login";
+                msg.innerText = "Invalid login";
             }
-
         } catch(err){
             console.error(err);
-            msg.innerText = "Cannot connect to server";
+            msg.innerText = "Cannot connect to server - make sure Firebase is configured";
         }
-
     }
 
     /* =========================
        REGISTER
     ========================= */
-    else{
-
+    else {
         try {
+            const result = await FireDB.createUser(user, pass, "https://via.placeholder.com/40");
 
-            const res = await fetch("/api/users/signup", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    username: user,
-                    password: pass,
-                    pfp: "https://via.placeholder.com/40"
-                })
-            });
-
-            let result = await res.json();
-
-            if(res.ok && result.success){
+            if(result){
                 msg.innerText = "Account created! You can log in now.";
                 toggleMode();
             } else {
-                msg.innerText = result?.error || "Registration failed";
+                msg.innerText = "Registration failed";
             }
-
         } catch(err){
             console.error(err);
-            msg.innerText = "Cannot connect to server";
+            if(err.code === 'auth/email-already-in-use'){
+                msg.innerText = "Username already taken";
+            } else if(err.code === 'auth/weak-password'){
+                msg.innerText = "Password must be at least 6 characters";
+            } else {
+                msg.innerText = "Cannot connect to server - make sure Firebase is configured";
+            }
         }
-
     }
 }
 
@@ -166,26 +141,22 @@ async function submit(){
    LOGOUT
 ========================= */
 function logout(){
-
+    FireDB.logout();
     localStorage.removeItem("currentUser");
-
-    /* 🔥 SYNC ALL PAGES */
+    localStorage.removeItem("currentUid");
     localStorage.setItem("userSync", Date.now());
-
     location.reload();
 }
 
 /* =========================
-   INIT (THIS PREVENTS BLANK PAGE BUG)
+   INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", ()=>{
-
     let logoutBtn = document.getElementById("logoutBtn");
 
     if(localStorage.getItem("currentUser") && logoutBtn){
         logoutBtn.style.display = "block";
     }
-
 });
 
 /* =========================
@@ -198,6 +169,130 @@ window.addEventListener("storage", (e)=>{
 });
 
 </script>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.container{
+    width:100%;
+    max-width:400px;
+    padding:30px;
+    background:var(--panel);
+    border-radius:20px;
+    box-shadow:0 0 30px rgba(59,130,246,0.3);
+}
+
+h1{
+    text-align:center;
+    margin-bottom:20px;
+}
+
+.input-group{
+    margin-bottom:15px;
+}
+
+.input-group label{
+    display:block;
+    margin-bottom:5px;
+    font-weight:bold;
+}
+
+.input-group input{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    border:none;
+    background:var(--card);
+    color:var(--text);
+    font-size:16px;
+    box-sizing:border-box;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:var(--accent);
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+button:hover{
+    opacity:0.9;
+}
+
+.switch{
+    text-align:center;
+    margin-top:15px;
+    opacity:0.7;
+    cursor:pointer;
+}
+
+.switch:hover{
+    opacity:1;
+}
+
+#msg{
+    text-align:center;
+    margin-top:15px;
+    color:#ef4444;
+}
+
+.nav-link{
+    text-align:center;
+    margin-top:20px;
+}
+
+.nav-link a{
+    color:var(--accent);
+    text-decoration:none;
+}
+
+.nav-link a:hover{
+    text-decoration:underline;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1 id="title">Login</h1>
+
+    <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter username">
+    </div>
+
+    <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter password">
+    </div>
+
+    <button type="button" onclick="submit()">Login</button>
+
+    <div class="switch" id="switchText" onclick="toggleMode()">
+        Don't have an account? Register
+    </div>
+
+    <div id="msg"></div>
+
+    <div class="nav-link">
+        <a href="index.html">← Back to Home</a>
+    </div>
+</div>
 
 </body>
 </html>

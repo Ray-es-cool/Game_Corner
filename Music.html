@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <title>Music</title>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
+
 <script>
 function applyTheme(){
     let theme = localStorage.getItem("theme") || "dark";
@@ -104,10 +110,29 @@ body{
     background:var(--card);
     border-radius:10px;
     cursor:pointer;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
 .song:hover{
     background:#374151;
+}
+
+.song.selected{
+    border:2px solid var(--accent);
+}
+
+.song-actions{
+    display:flex;
+    gap:5px;
+}
+
+.song-actions button{
+    width:auto;
+    margin:0;
+    padding:4px 8px;
+    font-size:12px;
 }
 
 .player{
@@ -129,6 +154,11 @@ button{
     cursor:pointer;
 }
 
+button:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+}
+
 input[type="range"]{
     width:100%;
     margin-top:10px;
@@ -141,6 +171,43 @@ input[type="range"]{
     transform:translateX(-50%);
     font-size:32px;
 }
+
+.admin-panel{
+    margin-top:20px;
+    padding:15px;
+    background:var(--card);
+    border-radius:10px;
+}
+
+.admin-panel h3{
+    margin-top:0;
+    color:var(--accent);
+}
+
+.delete-btn{
+    background:#ef4444;
+}
+
+.delete-btn:hover{
+    background:#dc2626;
+}
+
+.controls{
+    display:flex;
+    gap:10px;
+    margin-top:15px;
+}
+
+.controls button{
+    flex:1;
+}
+
+.now-playing{
+    font-size:24px;
+    font-weight:bold;
+    color:var(--accent);
+    margin-bottom:10px;
+}
 </style>
 </head>
 
@@ -150,8 +217,8 @@ input[type="range"]{
     <div></div>
     <div class="nav-center">
         <a href="index.html">Home</a>
-        <a href="games.html">Games</a>
-        <a href="dailyrewards.html">Daily Rewards</a>
+        <a href="Games.html">Games</a>
+        <a href="DailyRewards.html">Daily Rewards</a>
         <a href="shop.html">Shop</a>
         <a href="settings.html">Settings</a>
         <a href="music.html">Music</a>
@@ -163,22 +230,31 @@ input[type="range"]{
 
     <div class="playlist" id="playlistBox">
         <h3>Playlist</h3>
+        <div id="playlistContainer"></div>
     </div>
 
     <div class="player">
+        <div class="now-playing" id="nowPlaying">Nothing playing</div>
 
-        <h3 id="nowPlaying">Nothing playing</h3>
-
-        <button onclick="playSelected()">▶ Play Selected</button>
+        <div class="controls">
+            <button onclick="playPrevious()">⏮ Previous</button>
+            <button onclick="togglePlay()" id="playPauseBtn">▶ Play</button>
+            <button onclick="playNext()">Next ⏭</button>
+        </div>
 
         <label>Volume</label>
         <input type="range" min="0" max="1" step="0.01" id="volume">
 
-        <div id="adminPanel" style="display:none; margin-top:20px;">
-            <h3>Game_Master Upload Songs</h3>
-            <input type="file" id="upload" multiple accept="audio/*">
-            <button onclick="uploadSongs()">Upload / Replace Playlist</button>
-            <button onclick="clearSongs()">Clear Playlist</button>
+        <div id="adminPanel" class="admin-panel" style="display:none;">
+            <h3>Game_Master Music Management</h3>
+            <p style="font-size:12px;opacity:0.7;">Only Game_Master can upload, delete, or reorder songs</p>
+
+            <label style="display:block;margin-top:10px;">Upload New Song</label>
+            <input type="file" id="upload" accept="audio/*" style="margin-top:5px;">
+            <input type="text" id="songNameInput" placeholder="Song name (optional)" style="width:100%;padding:8px;margin-top:5px;border-radius:5px;border:none;">
+            <button onclick="uploadSong()">Upload Song</button>
+
+            <button onclick="clearAllSongs()" class="delete-btn" style="margin-top:10px;">Clear All Songs</button>
         </div>
 
     </div>
@@ -189,19 +265,20 @@ input[type="range"]{
 <script>
 
 /* =========================
-   USER SYSTEM (GLOBAL)
+   USER SYSTEM
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
+let selectedIndex = 0;
+let playlist = [];
 
 function loadUserUI(){
     let box = document.getElementById("userBox");
-
     if(!box) return;
 
     if(currentUser){
         box.innerHTML = `
             <span>${currentUser}</span>
-            <button onclick="logoutUser()" 
+            <button onclick="logoutUser()"
             style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
             Logout
             </button>
@@ -212,72 +289,128 @@ function loadUserUI(){
 }
 
 function logoutUser(){
+    if(window.FireDB) FireDB.logout();
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUid");
+    currentUser = null;
     location.reload();
 }
 
-/* TOKENS */
 function loadTokens(){
     let el = document.getElementById("tokens");
     if(!el || !currentUser) return;
-
     el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
 }
 
-window.addEventListener("storage",(e)=>{
-    if(e.key === currentUser+"_tokens"){
-        loadTokens();
-    }
-});
-
 /* =========================
-   PLAYLIST
+   PLAYLIST MANAGEMENT
 ========================= */
-let selectedIndex = 0;
-
-function getPlaylist(){
-    return JSON.parse(localStorage.getItem("playlist")) || [];
-}
-
-function savePlaylist(list){
-    localStorage.setItem("playlist", JSON.stringify(list));
-    localStorage.setItem("musicCommand", Date.now());
+async function loadPlaylist(){
+    try {
+        playlist = await FireDB.getPlaylist();
+        renderPlaylist();
+    } catch(err) {
+        console.error("Failed to load playlist:", err);
+        document.getElementById("playlistContainer").innerHTML = "<p>Failed to load playlist</p>";
+    }
 }
 
 function renderPlaylist(){
-    let box = document.getElementById("playlistBox");
-    if(!box) return;
+    const container = document.getElementById("playlistContainer");
+    if(!container) return;
 
-    box.innerHTML = "<h3>Playlist</h3>";
+    container.innerHTML = "";
 
-    let list = getPlaylist();
-
-    if(list.length === 0){
-        box.innerHTML += "<p>No songs uploaded</p>";
+    if(playlist.length === 0){
+        container.innerHTML = "<p>No songs uploaded yet</p>";
         return;
     }
 
-    list.forEach((song, i)=>{
-        let div = document.createElement("div");
+    playlist.forEach((song, i) => {
+        const div = document.createElement("div");
         div.className = "song";
-        div.innerText = song.name;
+        if(i === selectedIndex) div.classList.add("selected");
 
-        div.onclick = ()=>{
-            selectedIndex = i;
-            document.getElementById("nowPlaying").innerText = song.name;
-        };
+        const deleteBtn = currentUser === "Game_Master"
+            ? `<button class="delete-btn" onclick="deleteSong('${song.id}', event)">🗑</button>`
+            : "";
 
-        box.appendChild(div);
+        div.innerHTML = `
+            <span onclick="selectSong(${i})">${song.name}</span>
+            <div class="song-actions">
+                ${deleteBtn}
+            </div>
+        `;
+
+        container.appendChild(div);
     });
 }
 
+function selectSong(i){
+    selectedIndex = i;
+    const song = playlist[i];
+    document.getElementById("nowPlaying").innerText = "🎵 " + song.name;
+    renderPlaylist();
+}
+
 /* =========================
-   PLAY
+   PLAYBACK CONTROLS
 ========================= */
+function getAudio(){
+    if(!window.globalAudio){
+        window.globalAudio = new Audio();
+        window.globalAudio.loop = true;
+    }
+    return window.globalAudio;
+}
+
 function playSelected(){
-    localStorage.setItem("track", selectedIndex);
+    if(playlist.length === 0) return;
+
+    const song = playlist[selectedIndex];
+    const audio = getAudio();
+
+    audio.src = song.file_data;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+
+    document.getElementById("playPauseBtn").innerText = "⏸ Pause";
+    document.getElementById("nowPlaying").innerText = "🎵 " + song.name;
+
+    // Save state to localStorage for cross-page persistence
+    localStorage.setItem("currentTrack", song.id);
     localStorage.setItem("musicPlaying", "true");
-    localStorage.setItem("musicCommand", Date.now());
+}
+
+function togglePlay(){
+    const audio = getAudio();
+    const btn = document.getElementById("playPauseBtn");
+
+    if(playlist.length === 0) return;
+
+    if(audio.paused){
+        audio.play().catch(() => {});
+        btn.innerText = "⏸ Pause";
+        localStorage.setItem("musicPlaying", "true");
+    } else {
+        audio.pause();
+        btn.innerText = "▶ Play";
+        localStorage.setItem("musicPlaying", "false");
+    }
+}
+
+function playNext(){
+    if(playlist.length === 0) return;
+    selectedIndex = (selectedIndex + 1) % playlist.length;
+    selectSong(selectedIndex);
+    playSelected();
+}
+
+function playPrevious(){
+    if(playlist.length === 0) return;
+    selectedIndex = (selectedIndex - 1 + playlist.length) % playlist.length;
+    selectSong(selectedIndex);
+    playSelected();
 }
 
 /* =========================
@@ -288,136 +421,154 @@ let slider = document.getElementById("volume");
 function syncVolume(){
     let v = localStorage.getItem("volume");
     if(v === null) v = 0.5;
-
     if(slider) slider.value = v;
-
-    if(window.globalAudio){
-        window.globalAudio.volume = parseFloat(v);
-    }
+    const audio = getAudio();
+    if(audio) audio.volume = parseFloat(v);
 }
 
 if(slider){
     slider.addEventListener("input",(e)=>{
         let v = parseFloat(e.target.value);
         localStorage.setItem("volume", v);
-
-        if(window.globalAudio){
-            window.globalAudio.volume = v;
-        }
+        const audio = getAudio();
+        if(audio) audio.volume = v;
     });
 }
 
 /* =========================
-   ADMIN
+   ADMIN FUNCTIONS (Game_Master Only)
 ========================= */
 function isAdmin(){
     return currentUser === "Game_Master";
 }
 
-/* =========================
-   UPLOAD
-========================= */
-async function uploadSongs(){
-
+async function uploadSong(){
     if(!isAdmin()){
-        alert("Not allowed");
+        alert("Only Game_Master can upload songs");
         return;
     }
 
-    let files = Array.from(document.getElementById("upload").files);
-    if(!files.length) return;
+    const fileInput = document.getElementById("upload");
+    const nameInput = document.getElementById("songNameInput");
 
-    let newList = await Promise.all(files.map(file=>{
-        return new Promise(resolve=>{
-            let reader = new FileReader();
-            reader.onload = e => resolve({
-                name:file.name,
-                data:e.target.result
-            });
-            reader.readAsDataURL(file);
-        });
-    }));
-
-    savePlaylist(newList);
-    renderPlaylist();
-}
-
-/* =========================
-   CLEAR
-========================= */
-function clearSongs(){
-    if(!isAdmin()){
-        alert("Not allowed");
+    if(fileInput.files.length === 0){
+        alert("Please select a song file");
         return;
     }
 
-    localStorage.removeItem("playlist");
-    localStorage.setItem("musicCommand", Date.now());
-    renderPlaylist();
+    const file = fileInput.files[0];
+    const songName = nameInput.value || file.name;
+
+    const reader = new FileReader();
+    reader.onload = async function(e){
+        try {
+            const result = await FireDB.uploadMusic(songName, e.target.result, file.type);
+            if(result){
+                alert("Song uploaded successfully!");
+                fileInput.value = "";
+                nameInput.value = "";
+                loadPlaylist();
+            } else {
+                alert("Upload failed");
+            }
+        } catch(err){
+            alert("Upload error: " + err.message);
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+async function deleteSong(musicId, event){
+    if(event) event.stopPropagation();
+
+    if(!isAdmin()){
+        alert("Only Game_Master can delete songs");
+        return;
+    }
+
+    if(!confirm("Delete this song?")) return;
+
+    try {
+        await FireDB.deleteMusic(musicId);
+        loadPlaylist();
+    } catch(err){
+        alert("Delete error: " + err.message);
+    }
+}
+
+async function clearAllSongs(){
+    if(!isAdmin()){
+        alert("Only Game_Master can clear playlist");
+        return;
+    }
+
+    if(!confirm("Delete ALL songs from playlist? This cannot be undone.")) return;
+
+    try {
+        await FireDB.clearAllMusic();
+        alert("Playlist cleared");
+        loadPlaylist();
+    } catch(err){
+        alert("Clear error: " + err.message);
+    }
 }
 
 /* =========================
-   GLOBAL MUSIC ENGINE
+   CROSS-PAGE MUSIC PERSISTENCE
+   Music continues playing when navigating between pages
 ========================= */
-(function(){
+function restoreMusicState(){
+    const audio = getAudio();
+    const savedTrack = localStorage.getItem("currentTrack");
+    const isPlaying = localStorage.getItem("musicPlaying") === "true";
+    const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
 
-    if(window.globalAudio) return;
+    if(savedTrack && playlist.length > 0){
+        const trackIndex = playlist.findIndex(s => s.id === savedTrack);
+        if(trackIndex !== -1){
+            selectedIndex = trackIndex;
+            const song = playlist[trackIndex];
+            audio.src = song.file_data;
+            audio.currentTime = savedTime;
 
-    let audio = new Audio();
-    audio.loop = true;
-    window.globalAudio = audio;
+            if(isPlaying){
+                audio.play().catch(() => {});
+                document.getElementById("playPauseBtn").innerText = "⏸ Pause";
+            }
 
-    function load(){
-        let playlist = getPlaylist();
-        let track = parseInt(localStorage.getItem("track")) || 0;
-        let volume = parseFloat(localStorage.getItem("volume")) || 0.5;
-        let time = parseFloat(localStorage.getItem("musicTime")) || 0;
-
-        let song = playlist[track];
-        if(!song) return;
-
-        audio.src = song.data || song;
-        audio.volume = volume;
-        audio.currentTime = time;
-
-        if(localStorage.getItem("musicPlaying") === "true"){
-            audio.play().catch(()=>{});
+            document.getElementById("nowPlaying").innerText = "🎵 " + song.name;
         }
     }
-
-    window.addEventListener("storage",(e)=>{
-        if(e.key === "musicCommand" || e.key === "track"){
-            load();
-        }
-    });
-
-    setInterval(()=>{
-        if(audio.src){
-            localStorage.setItem("musicTime", audio.currentTime);
-        }
-    },500);
-
-    document.addEventListener("click",()=>{
-        audio.play().catch(()=>{});
-    },{once:true});
-
-    load();
-
-})();
+}
 
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", ()=>{
-    renderPlaylist();
-    syncVolume();
+document.addEventListener("DOMContentLoaded", async ()=>{
     loadUserUI();
     loadTokens();
+    syncVolume();
 
     if(isAdmin()){
-        let panel = document.getElementById("adminPanel");
-        if(panel) panel.style.display = "block";
+        document.getElementById("adminPanel").style.display = "block";
     }
+
+    await loadPlaylist();
+    restoreMusicState();
+
+    // Unlock audio on first click
+    document.addEventListener("click", ()=>{
+        const audio = getAudio();
+        if(audio.src) audio.play().catch(() => {});
+    }, {once:true});
+
+    // Save playback position periodically
+    setInterval(()=>{
+        const audio = getAudio();
+        if(audio.src && !isNaN(audio.currentTime)){
+            localStorage.setItem("musicTime", audio.currentTime);
+        }
+    }, 1000);
 });
 
 </script>

@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <title>Shop</title>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
+
 <script>
 function applyTheme(){
     let theme = localStorage.getItem("theme") || "dark";
@@ -48,7 +54,6 @@ background:var(--bg);
 color:var(--text);
 }
 
-/* NAV */
 .nav{
 width:80%;
 margin:20px auto;
@@ -84,7 +89,6 @@ align-items:center;
 gap:10px;
 }
 
-/* MAIN */
 .main{
 width:80%;
 margin:auto;
@@ -126,12 +130,24 @@ cursor:pointer;
 width:100%;
 }
 
+.item button:disabled{
+opacity:0.5;
+cursor:not-allowed;
+}
+
 .token{
 position:fixed;
 bottom:20px;
 left:50%;
 transform:translateX(-50%);
 font-size:32px;
+}
+
+.empty-msg{
+text-align:center;
+padding:40px;
+opacity:0.7;
+font-size:18px;
 }
 </style>
 </head>
@@ -147,7 +163,7 @@ font-size:32px;
 <a href="Games.html">Games</a>
 <a href="DailyRewards.html">Daily Rewards</a>
 <a href="settings.html">Settings</a>
-<a href="login.html">Login</a>
+<a href="music.html">Music</a>
 <a href="shop.html">Shop</a>
 </div>
 
@@ -159,7 +175,12 @@ font-size:32px;
 
 <div class="title">Shop</div>
 
-<div class="shop-grid" id="shopGrid"></div>
+<div class="shop-grid" id="shopGrid">
+    <div class="empty-msg">
+        <p>🚧 Shop Coming Soon 🚧</p>
+        <p>Check back later for items!</p>
+    </div>
+</div>
 
 </div>
 
@@ -171,6 +192,7 @@ font-size:32px;
    USER SYSTEM
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
+let currentUid = localStorage.getItem("currentUid");
 
 function loadUserUI(){
     let box = document.getElementById("userBox");
@@ -180,7 +202,7 @@ function loadUserUI(){
     if(currentUser){
         box.innerHTML = `
             <span>${currentUser}</span>
-            <button onclick="logoutUser()" 
+            <button onclick="logoutUser()"
             style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
             Logout
             </button>
@@ -191,7 +213,11 @@ function loadUserUI(){
 }
 
 function logoutUser(){
+    if(window.FireDB) FireDB.logout();
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUid");
+    currentUser = null;
+    localStorage.setItem("userSync", Date.now());
     location.reload();
 }
 
@@ -206,71 +232,13 @@ function loadTokens(){
 }
 
 window.addEventListener("storage",(e)=>{
-    if(e.key === currentUser+"_tokens"){
+    if(e.key === "tokenSync"){
         loadTokens();
     }
+    if(e.key === "theme"){
+        applyTheme();
+    }
 });
-
-/* =========================
-   SHOP ITEMS
-========================= */
-let items = [
-    {name:"+50 Tokens", price:0, type:"bonus"},
-    {name:"Cool Theme (Coming Soon)", price:100},
-    {name:"VIP Badge (Coming Soon)", price:200},
-    {name:"Mystery Item", price:150}
-];
-
-function renderShop(){
-    let grid = document.getElementById("shopGrid");
-    grid.innerHTML = "";
-
-    items.forEach((item,i)=>{
-        let div = document.createElement("div");
-        div.className = "item";
-
-        div.innerHTML = `
-            <h3>${item.name}</h3>
-            <p>Cost: ${item.price} 🪙</p>
-            <button onclick="buy(${i})">Buy</button>
-        `;
-
-        grid.appendChild(div);
-    });
-}
-
-/* =========================
-   BUY SYSTEM
-========================= */
-function buy(i){
-
-    if(!currentUser){
-        alert("Login required");
-        window.location.href="login.html";
-        return;
-    }
-
-    let item = items[i];
-    let tokens = parseInt(localStorage.getItem(currentUser+"_tokens")) || 0;
-
-    if(tokens < item.price){
-        alert("Not enough tokens");
-        return;
-    }
-
-    tokens -= item.price;
-
-    /* Example reward */
-    if(item.type === "bonus"){
-        tokens += 50;
-    }
-
-    localStorage.setItem(currentUser+"_tokens", tokens);
-    localStorage.setItem("tokenSync", Date.now());
-
-    loadTokens();
-    alert("Purchased!");
-}
 
 /* =========================
    INIT
@@ -278,7 +246,6 @@ function buy(i){
 document.addEventListener("DOMContentLoaded", ()=>{
     loadUserUI();
     loadTokens();
-    renderShop();
 });
 
 </script>

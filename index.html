@@ -4,8 +4,50 @@
 <meta charset="UTF-8">
 <title id="siteTitle">Home</title>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+function applyTheme(){
+    let theme = localStorage.getItem("theme") || "dark";
+    let root = document.documentElement;
+
+    if(theme === "dark"){
+        root.style.setProperty("--bg", "#000");
+        root.style.setProperty("--panel", "#0a0a0a");
+        root.style.setProperty("--card", "#1f2937");
+        root.style.setProperty("--accent", "#3b82f6");
+        root.style.setProperty("--text", "white");
+    }
+
+    if(theme === "light"){
+        root.style.setProperty("--bg", "#f3f4f6");
+        root.style.setProperty("--panel", "#ffffff");
+        root.style.setProperty("--card", "#e5e7eb");
+        root.style.setProperty("--accent", "#2563eb");
+        root.style.setProperty("--text", "#111");
+    }
+
+    if(theme === "pink"){
+        root.style.setProperty("--bg", "#1a001f");
+        root.style.setProperty("--panel", "#2a0a2f");
+        root.style.setProperty("--card", "#3b0f42");
+        root.style.setProperty("--accent", "#ff4fa3");
+        root.style.setProperty("--text", "white");
+    }
+}
+applyTheme();
+
+window.addEventListener("storage", (e)=>{
+    if(e.key === "theme") applyTheme();
+});
+</script>
+
 <style>
-body{margin:0;font-family:Arial;background:#000;color:white;}
+body{margin:0;font-family:Arial;background:var(--bg);color:var(--text);}
 
 /* NAV */
 .nav{
@@ -16,12 +58,12 @@ justify-content:space-between;
 align-items:center;
 padding:15px 30px;
 border-radius:30px;
-background:#0a0a0a;
+background:var(--panel);
 box-shadow:0 0 20px rgba(59,130,246,0.4);
 }
 .nav-center{display:flex;gap:30px;margin:auto;}
-.nav a{color:white;text-decoration:none;padding:8px 14px;border-radius:10px;}
-.nav a:hover{background:#1f2937;}
+.nav a{color:var(--text);text-decoration:none;padding:8px 14px;border-radius:10px;}
+.nav a:hover{background:var(--card);}
 .user-box{display:flex;align-items:center;gap:10px;}
 
 /* MAIN */
@@ -30,21 +72,21 @@ box-shadow:0 0 20px rgba(59,130,246,0.4);
 .left{width:260px;display:flex;flex-direction:column;gap:20px;}
 
 .box{
-background:#0a0a0a;
+background:var(--panel);
 border-radius:20px;
 padding:20px;
 box-shadow:0 0 15px rgba(59,130,246,0.2);
 }
 
 .logo-box{height:220px;display:flex;align-items:center;justify-content:center;}
-.logo-box img{width:180px;height:180px;border-radius:25px;background:#1f2937;}
+.logo-box img{width:180px;height:180px;border-radius:25px;background:var(--card);}
 
 .center{flex:1;}
 .title{text-align:center;font-size:50px;margin-bottom:10px;}
 #sloganText{text-align:center;opacity:0.7;margin-bottom:20px;}
 
 .games-section{
-background:#0a0a0a;
+background:var(--panel);
 padding:20px;
 border-radius:20px;
 }
@@ -53,7 +95,7 @@ border-radius:20px;
 
 .game{
 flex:1;
-background:#1f2937;
+background:var(--card);
 padding:15px;
 border-radius:10px;
 text-align:center;
@@ -62,9 +104,41 @@ text-align:center;
 .admin{
 display:none;
 margin-top:20px;
-background:#0a0a0a;
+background:var(--card);
 padding:15px;
 border-radius:15px;
+}
+
+.admin input, .admin textarea{
+width:100%;
+padding:10px;
+margin:5px 0;
+border-radius:5px;
+border:none;
+background:var(--bg);
+color:var(--text);
+box-sizing:border-box;
+}
+
+.admin textarea{
+min-height:80px;
+resize:vertical;
+}
+
+.admin button{
+width:100%;
+padding:12px;
+border:none;
+border-radius:10px;
+background:var(--accent);
+color:white;
+cursor:pointer;
+margin-top:10px;
+font-size:16px;
+}
+
+.admin button:hover{
+opacity:0.9;
 }
 
 .token{
@@ -89,7 +163,8 @@ font-size:30px;
 <a href="DailyRewards.html">Daily Rewards</a>
 <a href="shop.html">Shop</a>
 <a href="settings.html">Settings</a>
-<a href="login.html">Login</a>
+<a href="music.html">Music</a>
+<a href="login.html" id="loginLink">Login</a>
 </div>
 
 <div class="user-box" id="userBox"></div>
@@ -117,15 +192,21 @@ font-size:30px;
 <div class="games-section">
 <h2>Recommended Games</h2>
 
-<div class="games"></div>
+<div class="games" id="gamesContainer">
+<!-- Games rendered here -->
+</div>
 
-<div class="admin">
+<div class="admin" id="adminPanel">
 <h3>Admin Panel (Game_Master Only)</h3>
+<label>Site Title</label>
 <input id="titleInput" placeholder="Title">
+<label>Slogan</label>
 <input id="sloganInput" placeholder="Slogan">
+<label>Updates (HTML allowed)</label>
 <textarea id="updatesInput"></textarea>
-<input type="file" id="logoFile">
-<button onclick="save()">Save</button>
+<label>Logo URL</label>
+<input id="logoInput" type="text" placeholder="https://...">
+<button onclick="save()">Save Site Settings</button>
 </div>
 
 </div>
@@ -135,185 +216,192 @@ font-size:30px;
 
 <div class="token" id="tokens">🪙 0</div>
 
-<script src="music-engine.js"></script>
-<script src="user-helper.js"></script>
-
 <script>
 
 /* =========================
-   GAMES
+   USER STATE
 ========================= */
-function getTopGames(){
-let games = JSON.parse(localStorage.getItem("games")) || [];
-return games
-.map((g,i)=>({...g,slotIndex:i}))
-.filter(g=>g && g.name)
-.sort((a,b)=>(b.players||0)-(a.players||0))
-.slice(0,4);
+let currentUser = localStorage.getItem("currentUser");
+
+function loadUserUI(){
+    let box = document.getElementById("userBox");
+    let loginLink = document.getElementById("loginLink");
+
+    if(!box) return;
+
+    if(currentUser){
+        box.innerHTML = `
+            <span>${currentUser}</span>
+            <button onclick="logoutUser()"
+            style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+            Logout
+            </button>
+        `;
+        if(loginLink) loginLink.style.display = "none";
+    } else {
+        box.innerHTML = "";
+        if(loginLink) loginLink.style.display = "block";
+    }
 }
 
-function canPlayGames(){
-return !!localStorage.getItem("currentUser");
+function logoutUser(){
+    if(window.FireDB) FireDB.logout();
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUid");
+    currentUser = null;
+    localStorage.setItem("userSync", Date.now());
+    location.reload();
 }
 
-function openGame(i){
-if(!canPlayGames()){
-alert("Login required");
-window.location.href="login.html";
-return;
-}
-window.location.href="Games.html?play="+i;
+function loadTokens(){
+    let el = document.getElementById("tokens");
+    if(!el || !currentUser) return;
+    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
 }
 
-function renderRecommendedGames(){
-let wrap=document.querySelector(".games");
-if(!wrap) return;
-
-let top=getTopGames();
-
-if(top.length===0){
-wrap.innerHTML="<div>No games yet</div>";
-return;
-}
-
-wrap.innerHTML=top.map((g,i)=>`
-<div class="game">
-<strong>#${i+1} ${g.name}</strong>
-<p>👥 ${g.players||0}</p>
-<button onclick="openGame(${g.slotIndex})">
-${canPlayGames()?"Play":"Login Required"}
-</button>
-</div>
-`).join("");
+function isAdmin(){
+    return currentUser === "Game_Master";
 }
 
 /* =========================
-   SITE API
+   SITE SETTINGS
 ========================= */
 async function loadSite(){
-try{
-let r=await fetch("/api/site");
-let d=await r.json();
+    try{
+        const data = await FireDB.getSiteSettings();
 
-apply({
-title:d.title||"Home",
-logo:d.logo||"https://via.placeholder.com/200",
-updates:d.updates||"- Ready",
-slogan:d.slogan||"Play. Learn. Repeat"
-});
-}catch{
-apply({
-title:"Home",
-logo:"https://via.placeholder.com/200",
-updates:"- Ready",
-slogan:"Play. Learn. Repeat"
-});
-}
+        apply({
+            title: data.title || "Home",
+            logo: data.logo || "https://via.placeholder.com/200",
+            updates: data.updates || "- Ready",
+            slogan: data.slogan || "Play. Learn. Repeat"
+        });
+    } catch(err){
+        console.error("Failed to load site settings:", err);
+        apply({
+            title: "Home",
+            logo: "https://via.placeholder.com/200",
+            updates: "- System loading...",
+            slogan: "Play. Learn. Repeat"
+        });
+    }
 }
 
 function apply(d){
-let el;
+    let el;
 
-el=document.getElementById("siteName");
-if(el) el.innerText=d.title;
+    el = document.getElementById("siteName");
+    if(el) el.innerText = d.title;
 
-el=document.getElementById("siteTitle");
-if(el) el.innerText=d.title;
+    el = document.getElementById("siteTitle");
+    if(el) el.innerText = d.title;
 
-el=document.getElementById("logoImg");
-if(el) el.src=d.logo;
+    el = document.getElementById("logoImg");
+    if(el) el.src = d.logo;
 
-el=document.getElementById("updatesText");
-if(el) el.innerHTML=d.updates;
+    el = document.getElementById("updatesText");
+    if(el) el.innerHTML = d.updates;
 
-el=document.getElementById("sloganText");
-if(el) el.innerText=d.slogan;
+    el = document.getElementById("sloganText");
+    if(el) el.innerText = d.slogan;
 }
 
 /* =========================
    ADMIN SAVE
 ========================= */
 async function save(){
+    if(!isAdmin()){
+        alert("Admin only");
+        return;
+    }
 
-let currentUser = localStorage.getItem("currentUser");
+    let title = document.getElementById("titleInput").value;
+    let slogan = document.getElementById("sloganInput").value;
+    let updates = document.getElementById("updatesInput").value;
+    let logoUrl = document.getElementById("logoInput").value;
 
-if(currentUser!=="Game_Master"){
-alert("Admin only");
-return;
-}
+    try {
+        await FireDB.saveSiteSettings({
+            title: title || document.getElementById("siteName").innerText,
+            logo: logoUrl || document.getElementById("logoImg").src,
+            updates: updates || document.getElementById("updatesText").innerHTML,
+            slogan: slogan || document.getElementById("sloganText").innerText
+        });
 
-let title=document.getElementById("titleInput").value;
-let updates=document.getElementById("updatesInput").value;
-let slogan=document.getElementById("sloganInput").value;
-
-let file=document.getElementById("logoFile").files[0];
-let logo=null;
-
-if(file){
-logo=await new Promise(res=>{
-let r=new FileReader();
-r.onload=e=>res(e.target.result);
-r.readAsDataURL(file);
-});
-}
-
-await fetch("/api/site",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-user:"Game_Master",
-title,
-logo:logo||document.getElementById("logoImg").src,
-updates,
-slogan
-})
-});
-
-alert("Saved");
-loadSite();
+        alert("Saved");
+        loadSite();
+    } catch(err){
+        alert("Save error: " + err.message);
+    }
 }
 
 /* =========================
-   GLOBAL MUSIC (FIXED FULL SYNC)
+   GAMES
 ========================= */
-(function(){
-if(window.globalAudio) return;
+async function loadTopGames(){
+    try {
+        const games = await FireDB.getGames(true); // published only
+        const top = games
+            .filter(g => g && g.name)
+            .sort((a,b) => (b.players||0) - (a.players||0))
+            .slice(0, 4);
 
-let a=new Audio();
-a.loop=true;
+        const wrap = document.getElementById("gamesContainer");
+        if(!wrap) return;
 
-let playlist=JSON.parse(localStorage.getItem("playlist"))||[];
-let track=parseInt(localStorage.getItem("track"))||0;
-let volume=parseFloat(localStorage.getItem("volume"))||0.5;
+        if(top.length === 0){
+            wrap.innerHTML = "<div>No games available yet</div>";
+            return;
+        }
 
-if(playlist.length){
-a.src=playlist[track].data||playlist[track];
-a.currentTime=parseFloat(localStorage.getItem("musicTime"))||0;
-a.volume=volume;
+        wrap.innerHTML = top.map((g,i) => `
+            <div class="game">
+                <strong>#${i+1} ${g.name}</strong>
+                <p>👥 ${g.players || 0}</p>
+                <button onclick="openGame(${g.slot_index})"
+                style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent);color:white;cursor:pointer;margin-top:8px;">
+                ${currentUser ? "Play" : "Login Required"}
+                </button>
+            </div>
+        `).join("");
+    } catch(err){
+        console.error("Failed to load games:", err);
+    }
 }
 
-if(localStorage.getItem("musicPlaying")==="true"){
-a.play().catch(()=>{});
+function canPlayGames(){
+    return !!currentUser;
 }
 
-document.addEventListener("click",()=>a.play().catch(()=>{}),{once:true});
-
-setInterval(()=>{
-if(!isNaN(a.currentTime)){
-localStorage.setItem("musicTime",a.currentTime);
-localStorage.setItem("track",track);
+function openGame(i){
+    if(!canPlayGames()){
+        alert("Login required");
+        window.location.href = "login.html";
+        return;
+    }
+    window.location.href = "Games.html?play=" + i;
 }
-},500);
-
-window.globalAudio=a;
-})();
 
 /* =========================
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", async ()=>{
-await loadSite();
-renderRecommendedGames();
+    loadUserUI();
+    loadTokens();
+
+    if(isAdmin()){
+        document.getElementById("adminPanel").style.display = "block";
+    }
+
+    await loadSite();
+    await loadTopGames();
+
+    // Sync on storage changes
+    window.addEventListener("storage", (e) => {
+        if(e.key === "userSync") location.reload();
+        if(e.key === "tokenSync") loadTokens();
+        if(e.key === "theme") applyTheme();
+    });
 });
 
 </script>

@@ -4,126 +4,280 @@
 <meta charset="UTF-8">
 <title>Daily Rewards</title>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+function applyTheme(){
+    let theme = localStorage.getItem("theme") || "dark";
+    let root = document.documentElement;
+
+    if(theme === "dark"){
+        root.style.setProperty("--bg", "#000");
+        root.style.setProperty("--panel", "#0a0a0a");
+        root.style.setProperty("--card", "#1f2937");
+        root.style.setProperty("--accent", "#3b82f6");
+        root.style.setProperty("--text", "white");
+    }
+
+    if(theme === "light"){
+        root.style.setProperty("--bg", "#f3f4f6");
+        root.style.setProperty("--panel", "#ffffff");
+        root.style.setProperty("--card", "#e5e7eb");
+        root.style.setProperty("--accent", "#2563eb");
+        root.style.setProperty("--text", "#111");
+    }
+
+    if(theme === "pink"){
+        root.style.setProperty("--bg", "#1a001f");
+        root.style.setProperty("--panel", "#2a0a2f");
+        root.style.setProperty("--card", "#3b0f42");
+        root.style.setProperty("--accent", "#ff4fa3");
+        root.style.setProperty("--text", "white");
+    }
+}
+applyTheme();
+
+window.addEventListener("storage",(e)=>{
+    if(e.key === "theme") applyTheme();
+});
+</script>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background:var(--bg);
+    color:var(--text);
+}
+
+.nav{
+    width:80%;
+    margin:20px auto;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:15px 30px;
+    border-radius:30px;
+    background:var(--panel);
+    box-shadow:0 0 20px rgba(59,130,246,0.4);
+}
+
+.nav-center{
+    display:flex;
+    gap:30px;
+    margin:auto;
+}
+
+.nav a{
+    color:var(--text);
+    text-decoration:none;
+    padding:8px 14px;
+    border-radius:10px;
+}
+
+.nav a:hover{
+    background:var(--card);
+}
+
+.user-box{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.main{
+    width:80%;
+    margin:60px auto;
+    text-align:center;
+}
+
+.reward-box{
+    background:var(--panel);
+    display:inline-block;
+    padding:40px;
+    border-radius:25px;
+    box-shadow:0 0 30px rgba(59,130,246,0.4);
+    min-width:300px;
+}
+
+.reward-box h1{
+    font-size:32px;
+    margin-bottom:10px;
+}
+
+.reward-box p{
+    opacity:0.7;
+    margin-bottom:25px;
+}
+
+#btn{
+    width:100%;
+    padding:15px;
+    font-size:18px;
+    border:none;
+    border-radius:15px;
+    background:var(--accent);
+    color:white;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+#btn:disabled{
+    background:#4b5563;
+    cursor:not-allowed;
+}
+
+#msg{
+    margin-top:20px;
+    font-size:16px;
+    color:var(--accent);
+}
+
+.token{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:32px;
+}
+
+.reward-icon{
+    font-size:64px;
+    margin:20px 0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="nav">
+    <div></div>
+    <div class="nav-center">
+        <a href="index.html">Home</a>
+        <a href="Games.html">Games</a>
+        <a href="DailyRewards.html">Daily Rewards</a>
+        <a href="shop.html">Shop</a>
+        <a href="settings.html">Settings</a>
+        <a href="music.html">Music</a>
+    </div>
+    <div class="user-box" id="userBox"></div>
+</div>
+
+<div class="main">
+    <div class="reward-box">
+        <h1>Daily Rewards</h1>
+        <p>Claim your free tokens every 24 hours!</p>
+
+        <div class="reward-icon">🎁</div>
+
+        <button id="btn">Claim +5 🪙</button>
+        <p id="msg"></p>
+    </div>
+</div>
+
+<div class="token" id="tokens">🪙 0</div>
+
 <script>
 
 /* =========================
-   DAILY REWARDS - FULL SYSTEM CONNECTED
-   (uses GLOBAL user-system.js state)
+   USER STATE
 ========================= */
+let currentUser = localStorage.getItem("currentUser");
+let currentUid = localStorage.getItem("currentUid");
+const COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
 
-/* SAFETY: get global user */
-function getCurrentUser(){
-    return localStorage.getItem("currentUser") || null;
+/* =========================
+   UI FUNCTIONS
+========================= */
+function loadUserUI(){
+    let box = document.getElementById("userBox");
+    if(!box) return;
+
+    if(currentUser){
+        box.innerHTML = `
+            <span>${currentUser}</span>
+            <button onclick="logoutUser()"
+            style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+            Logout
+            </button>
+        `;
+    } else {
+        box.innerHTML = `<a href="login.html">Login</a>`;
+    }
 }
 
-/* ELEMENTS */
-let btn = document.getElementById("btn");
-let msg = document.getElementById("msg");
-let tokenEl = document.getElementById("tokens");
-let userBox = document.getElementById("userBox");
+function logoutUser(){
+    if(window.FireDB) FireDB.logout();
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUid");
+    currentUser = null;
+    localStorage.setItem("userSync", Date.now());
+    location.reload();
+}
+
+function loadTokens(){
+    let el = document.getElementById("tokens");
+    if(!el || !currentUser) return;
+    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+}
 
 /* =========================
-   CONSTANTS
+   REWARD SYSTEM
 ========================= */
-const COOLDOWN = 24 * 60 * 60 * 1000; // 24h
-
-/* =========================
-   USER DISPLAY (FULL SAFE RENDER)
-========================= */
-function renderUser(){
-
-    let user = getCurrentUser();
-
-    if(!user){
-        if(userBox){
-            userBox.innerHTML = `<a href="login.html">Login</a>`;
-        }
-
-        if(btn){
-            btn.disabled = true;
-        }
-
-        if(msg){
-            msg.innerText = "Login required to claim rewards";
-        }
-
+async function claim(){
+    if(!currentUser){
+        alert("Please login to claim rewards");
+        window.location.href = "login.html";
         return;
     }
 
-    if(userBox){
-        userBox.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span>${user}</span>
-                <button onclick="logoutUser()" 
-                    style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;">
-                    Logout
-                </button>
-            </div>
-        `;
-    }
-
-    if(btn){
-        btn.disabled = false;
-    }
-}
-
-/* =========================
-   TOKENS SYSTEM (GLOBAL SYNC FORMAT)
-========================= */
-function loadTokens(){
-
-    let user = getCurrentUser();
-    if(!user || !tokenEl) return;
-
-    let tokens = parseInt(localStorage.getItem(user + "_tokens")) || 0;
-    tokenEl.innerText = "🪙 " + tokens;
-}
-
-/* =========================
-   CLAIM REWARD
-========================= */
-function claim(){
-
-    let user = getCurrentUser();
-    if(!user) return;
-
-    let last = localStorage.getItem(user + "_lastClaim");
+    let last = localStorage.getItem(currentUser + "_lastClaim");
 
     if(last && (Date.now() - parseInt(last)) < COOLDOWN){
         updateCooldown();
         return;
     }
 
-    let key = user + "_tokens";
+    // Update local tokens
+    let key = currentUser + "_tokens";
     let current = parseInt(localStorage.getItem(key)) || 0;
-
     current += 5;
-
     localStorage.setItem(key, current);
-    localStorage.setItem(user + "_lastClaim", Date.now());
+    localStorage.setItem(currentUser + "_lastClaim", Date.now());
 
-    msg.innerText = "Reward claimed: +5 🪙";
+    // Sync to Firebase
+    if(currentUid){
+        await FireDB.updateTokens(currentUid, current);
+    }
 
+    document.getElementById("msg").innerText = "Reward claimed: +5 🪙";
     loadTokens();
     updateCooldown();
 
-    /* GLOBAL SYNC EVENT */
+    // Global sync
     localStorage.setItem("tokenSync", Date.now());
 }
 
-/* =========================
-   COOLDOWN SYSTEM (FULL UI CONTROL)
-========================= */
 function updateCooldown(){
+    if(!currentUser){
+        const btn = document.getElementById("btn");
+        const msg = document.getElementById("msg");
+        if(btn) btn.disabled = true;
+        if(msg) msg.innerText = "Login required";
+        return;
+    }
 
-    let user = getCurrentUser();
-    if(!user) return;
-
-    let last = localStorage.getItem(user + "_lastClaim");
+    let last = localStorage.getItem(currentUser + "_lastClaim");
+    const btn = document.getElementById("btn");
+    const msg = document.getElementById("msg");
 
     if(!last){
-        btn.disabled = false;
-        msg.innerText = "Claim your daily reward!";
+        if(btn) btn.disabled = false;
+        if(msg) msg.innerText = "Claim your daily reward!";
         return;
     }
 
@@ -131,69 +285,56 @@ function updateCooldown(){
     let remaining = COOLDOWN - elapsed;
 
     if(remaining > 0){
-
-        btn.disabled = true;
+        if(btn) btn.disabled = true;
 
         let hours = Math.floor(remaining / 3600000);
         let minutes = Math.floor((remaining % 3600000) / 60000);
         let seconds = Math.floor((remaining % 60000) / 1000);
 
-        msg.innerText = `Next reward in ${hours}h ${minutes}m ${seconds}s`;
-
+        if(msg) msg.innerText = `Next reward in ${hours}h ${minutes}m ${seconds}s`;
     } else {
-        btn.disabled = false;
-        msg.innerText = "Reward ready!";
+        if(btn) btn.disabled = false;
+        if(msg) msg.innerText = "Reward ready!";
     }
 }
 
 /* =========================
-   CLICK HANDLER
+   INIT
 ========================= */
-btn.onclick = claim;
-
-/* =========================
-   STORAGE SYNC (CRITICAL FOR MULTI PAGE)
-========================= */
-window.addEventListener("storage", (e) => {
-
-    if(e.key === "currentUser"){
-        renderUser();
-        loadTokens();
-        updateCooldown();
-    }
-
-    if(e.key && e.key.includes("_tokens")){
-        loadTokens();
-    }
-
-    if(e.key && e.key.includes("_lastClaim")){
-        updateCooldown();
-    }
-});
-
-/* =========================
-   GLOBAL LOGOUT SUPPORT
-========================= */
-function logoutUser(){
-    localStorage.removeItem("currentUser");
-    location.reload();
-}
-
-/* =========================
-   INIT (FULL SAFE BOOT)
-========================= */
-function initDailyRewards(){
-
-    renderUser();
+document.addEventListener("DOMContentLoaded", ()=>{
+    loadUserUI();
     loadTokens();
     updateCooldown();
 
-    setInterval(updateCooldown, 1000); // live countdown feel
-}
+    // Live countdown
+    setInterval(updateCooldown, 1000);
 
-/* BOOT AFTER LOAD */
-document.addEventListener("DOMContentLoaded", initDailyRewards);
+    // Button handler
+    const btn = document.getElementById("btn");
+    if(btn) btn.onclick = claim;
+
+    // Sync listener
+    window.addEventListener("storage", (e)=>{
+        if(e.key === "currentUser"){
+            currentUser = localStorage.getItem("currentUser");
+            currentUid = localStorage.getItem("currentUid");
+            loadUserUI();
+            loadTokens();
+            updateCooldown();
+        }
+        if(e.key === "tokenSync"){
+            loadTokens();
+        }
+        if(e.key === "theme"){
+            applyTheme();
+        }
+        if(e.key && e.key.includes("_lastClaim")){
+            updateCooldown();
+        }
+    });
+});
 
 </script>
+
 </body>
 </html>

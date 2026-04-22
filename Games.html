@@ -4,307 +4,717 @@
 <meta charset="UTF-8">
 <title>Games</title>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+function applyTheme(){
+    let theme = localStorage.getItem("theme") || "dark";
+    let root = document.documentElement;
+
+    if(theme === "dark"){
+        root.style.setProperty("--bg", "#000");
+        root.style.setProperty("--panel", "#0a0a0a");
+        root.style.setProperty("--card", "#1f2937");
+        root.style.setProperty("--accent", "#3b82f6");
+        root.style.setProperty("--text", "white");
+    }
+
+    if(theme === "light"){
+        root.style.setProperty("--bg", "#f3f4f6");
+        root.style.setProperty("--panel", "#ffffff");
+        root.style.setProperty("--card", "#e5e7eb");
+        root.style.setProperty("--accent", "#2563eb");
+        root.style.setProperty("--text", "#111");
+    }
+
+    if(theme === "pink"){
+        root.style.setProperty("--bg", "#1a001f");
+        root.style.setProperty("--panel", "#2a0a2f");
+        root.style.setProperty("--card", "#3b0f42");
+        root.style.setProperty("--accent", "#ff4fa3");
+        root.style.setProperty("--text", "white");
+    }
+}
+applyTheme();
+
+window.addEventListener("storage",(e)=>{
+    if(e.key === "theme") applyTheme();
+});
+</script>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background:var(--bg);
+    color:var(--text);
+}
+
+/* NAV */
+.nav{
+    width:80%;
+    margin:20px auto;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:15px 30px;
+    border-radius:30px;
+    background:var(--panel);
+    box-shadow:0 0 20px rgba(59,130,246,0.4);
+}
+
+.nav-center{
+    display:flex;
+    gap:30px;
+    margin:auto;
+}
+
+.nav a{
+    color:var(--text);
+    text-decoration:none;
+    padding:8px 14px;
+    border-radius:10px;
+}
+
+.nav a:hover{
+    background:var(--card);
+}
+
+.user-box{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+/* MAIN */
+.main{
+    width:80%;
+    margin:auto;
+    padding:20px 0;
+}
+
+.title{
+    text-align:center;
+    font-size:40px;
+    margin-bottom:20px;
+}
+
+/* GAME GRID */
+.game-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(250px, 1fr));
+    gap:20px;
+}
+
+.card{
+    background:var(--panel);
+    border-radius:15px;
+    padding:15px;
+    box-shadow:0 0 15px rgba(59,130,246,0.2);
+    text-align:center;
+}
+
+.card img{
+    width:100%;
+    height:150px;
+    object-fit:cover;
+    border-radius:10px;
+    background:var(--card);
+}
+
+.card h3{
+    margin:10px 0 5px;
+}
+
+.card p{
+    opacity:0.7;
+    margin-bottom:10px;
+}
+
+.card button{
+    padding:10px 20px;
+    border:none;
+    border-radius:10px;
+    background:var(--accent);
+    color:white;
+    cursor:pointer;
+    margin:5px;
+}
+
+.card button:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+}
+
+/* ADMIN PANEL */
+.admin-panel{
+    margin-top:15px;
+    padding:15px;
+    background:var(--card);
+    border-radius:10px;
+    text-align:left;
+}
+
+.admin-panel input[type="text"],
+.admin-panel input[type="file"]{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+    border-radius:5px;
+    border:none;
+    background:var(--bg);
+    color:var(--text);
+}
+
+.admin-panel label{
+    display:block;
+    margin-top:10px;
+    font-weight:bold;
+    color:var(--accent);
+}
+
+.admin-panel button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    background:var(--accent);
+    color:white;
+}
+
+.admin-panel .save-btn{
+    background:#22c55e;
+}
+
+.admin-panel .publish-btn{
+    background:var(--accent);
+}
+
+.admin-panel .delete-btn{
+    background:#ef4444;
+}
+
+.admin-panel .publish-btn:disabled{
+    background:#4b5563;
+    cursor:not-allowed;
+}
+
+/* EMPTY SLOT */
+.empty-slot{
+    background:var(--panel);
+    border:2px dashed var(--card);
+    border-radius:15px;
+    padding:40px 20px;
+    text-align:center;
+    color:var(--text);
+    opacity:0.5;
+}
+
+/* GAME OVERLAY */
+.game-overlay{
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.9);
+    z-index:1000;
+}
+
+.game-container{
+    width:90%;
+    height:90%;
+    margin:2% auto;
+    background:#111;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.game-frame{
+    width:100%;
+    height:calc(100% - 50px);
+    border:none;
+}
+
+.game-header{
+    height:50px;
+    background:var(--panel);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 20px;
+}
+
+.game-header button{
+    padding:8px 16px;
+    background:#ef4444;
+    color:white;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+/* TOKEN */
+.token{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:32px;
+}
+
+/* TABS */
+.tabs{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+    justify-content:center;
+}
+
+.tab-btn{
+    padding:10px 20px;
+    background:var(--card);
+    color:var(--text);
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+}
+
+.tab-btn.active{
+    background:var(--accent);
+}
+</style>
+</head>
+
+<body>
+
+<!-- NAV -->
+<div class="nav">
+    <div></div>
+    <div class="nav-center">
+        <a href="index.html">Home</a>
+        <a href="Games.html">Games</a>
+        <a href="DailyRewards.html">Daily Rewards</a>
+        <a href="shop.html">Shop</a>
+        <a href="settings.html">Settings</a>
+        <a href="music.html">Music</a>
+    </div>
+    <div class="user-box" id="userBox"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+    <div class="title">Games</div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('published')">Published Games</button>
+        <button class="tab-btn" onclick="showTab('all')" id="allTabBtn" style="display:none;">All Slots (Admin)</button>
+    </div>
+
+    <div class="game-grid" id="gameGrid"></div>
+</div>
+
+<!-- GAME OVERLAY -->
+<div class="game-overlay" id="gameOverlay">
+    <div class="game-container">
+        <div class="game-header">
+            <span id="gameTitle">Playing Game</span>
+            <button onclick="closeGame()">Close Game</button>
+        </div>
+        <iframe class="game-frame" id="gameFrame" src=""></iframe>
+    </div>
+</div>
+
+<div class="token" id="tokens">🪙 0</div>
+
 <script>
 
 /* =========================
-   GLOBAL USER STATE
+   STATE
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
+let games = [];
+let showingAll = false;
 
 /* =========================
-   VARIABLES
+   USER UI
 ========================= */
-let selectedIndex = 0;
+function loadUserUI(){
+    let box = document.getElementById("userBox");
+    if(!box) return;
 
-/* =========================
-   STORAGE
-========================= */
-let games = JSON.parse(localStorage.getItem("games")) || new Array(50).fill(null);
-
-function saveGames(){
-    localStorage.setItem("games", JSON.stringify(games));
+    if(currentUser){
+        box.innerHTML = `
+            <span>${currentUser}</span>
+            <button onclick="logoutUser()"
+            style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+            Logout
+            </button>
+        `;
+    } else {
+        box.innerHTML = `<a href="login.html">Login</a>`;
+    }
 }
 
-function canPlayGames(){
-    return !!currentUser;
+function logoutUser(){
+    if(window.FireDB) FireDB.logout();
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUid");
+    currentUser = null;
+    localStorage.setItem("userSync", Date.now());
+    location.reload();
+}
+
+function loadTokens(){
+    let el = document.getElementById("tokens");
+    if(!el || !currentUser) return;
+    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+}
+
+function isAdmin(){
+    return currentUser === "Game_Master";
 }
 
 /* =========================
-   SAFE ELEMENT GET
+   LOAD GAMES
 ========================= */
-function el(id){
-    return document.getElementById(id);
+async function loadGames(showAll = false){
+    try {
+        games = await FireDB.getGames(!showAll);
+        renderGames();
+    } catch(err){
+        console.error("Failed to load games:", err);
+        document.getElementById("gameGrid").innerHTML = "<p>Failed to load games</p>";
+    }
 }
 
-/* =========================
-   RENDER SYSTEM
-========================= */
-function render(){
-
-    let grid = el("grid");
+function renderGames(){
+    const grid = document.getElementById("gameGrid");
     if(!grid) return;
 
     grid.innerHTML = "";
 
-    for(let i = 0; i < games.length; i++){
+    for(let i = 0; i < 50; i++){
+        const game = games.find(g => g.slot_index === i);
 
-        let g = games[i];
+        // Skip empty slots when not showing all and not admin
+        if(!game && !showingAll && !isAdmin()){
+            continue;
+        }
 
-        if(!g && currentUser !== "Game_Master") continue;
+        const card = document.createElement("div");
+        card.className = "card";
 
-        let div = document.createElement("div");
-        div.className = "card";
+        if(game && game.name){
+            const thumb = game.thumbnail || "https://via.placeholder.com/200?text=No+Image";
+            const players = game.players || 0;
+            const canPlay = !!currentUser;
 
-        if(g){
-            let locked = !canPlayGames();
-
-            div.innerHTML = `
-                <img src="${g.thumb}">
-                <h3>${g.name}</h3>
-                <p>👥 ${g.players||0}</p>
-                <button onclick="play(${i})" ${locked ? "disabled style='opacity:0.6'" : ""}>
-                    ${locked ? "Login Required" : "Play"}
+            card.innerHTML = `
+                <img src="${thumb}" alt="${game.name}">
+                <h3>${game.name}</h3>
+                <p>👥 ${players} players</p>
+                <button onclick="playGame(${i})" ${canPlay ? "" : "disabled"}>
+                    ${canPlay ? "Play" : "Login Required"}
                 </button>
             `;
-        } else {
-            div.innerHTML = `<h3>Empty Slot</h3>`;
-        }
 
-        /* ADMIN PANEL */
-        if(currentUser === "Game_Master"){
-            let admin = document.createElement("div");
-            admin.innerHTML = `
-                <input placeholder="Game Name" id="name${i}">
-                <label class="label">Thumbnail Image</label>
-                <input type="file" id="thumb${i}">
-                <label class="label">Game Folder</label>
-                <input type="file" id="files${i}" webkitdirectory multiple>
-                <button onclick="saveSlot(${i})">Save Slot</button>
-                <button class="delete" onclick="deleteSlot(${i})">Delete Game</button>
+            // Admin panel for Game_Master
+            if(isAdmin()){
+                const isPublished = game.published === true;
+                card.innerHTML += `
+                    <div class="admin-panel">
+                        <input type="text" id="name${i}" value="${game.name}" placeholder="Game Name">
+                        <label>Thumbnail Image</label>
+                        <input type="file" id="thumb${i}" accept="image/*">
+                        <label>Game Folder (index.html required)</label>
+                        <input type="file" id="files${i}" webkitdirectory multiple>
+                        <button class="save-btn" onclick="saveSlot(${i})">Save Slot</button>
+                        <button class="publish-btn" onclick="togglePublish(${i})" ${isPublished ? '' : 'disabled'}>
+                            ${isPublished ? "✓ Published" : "Publish"}
+                        </button>
+                        <button class="delete-btn" onclick="deleteSlot(${i})">Delete Game</button>
+                    </div>
+                `;
+            }
+        } else if(isAdmin() || showingAll){
+            // Empty slot - admin can fill
+            card.innerHTML = `
+                <div class="empty-slot">
+                    <h3>Empty Slot #${i}</h3>
+                    <p>Click "Add Game" to fill this slot</p>
+                </div>
             `;
-            div.appendChild(admin);
+
+            if(isAdmin()){
+                card.innerHTML += `
+                    <div class="admin-panel">
+                        <input type="text" id="name${i}" placeholder="Game Name">
+                        <label>Thumbnail Image</label>
+                        <input type="file" id="thumb${i}" accept="image/*">
+                        <label>Game Folder (index.html required)</label>
+                        <input type="file" id="files${i}" webkitdirectory multiple>
+                        <button class="save-btn" onclick="saveSlot(${i})">Save Slot</button>
+                        <button class="publish-btn" onclick="togglePublish(${i})" disabled>Publish (save first)</button>
+                        <button class="delete-btn" onclick="deleteSlot(${i})">Reset Slot</button>
+                    </div>
+                `;
+            }
         }
 
-        grid.appendChild(div);
+        grid.appendChild(card);
     }
 }
 
 /* =========================
-   SAVE SLOT
+   TAB SWITCHING
 ========================= */
-function saveSlot(i){
+function showTab(tab){
+    if(tab === 'all'){
+        showingAll = true;
+        document.querySelector('.tab-btn:nth-child(1)').classList.remove('active');
+        document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+    } else {
+        showingAll = false;
+        document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+        document.querySelector('.tab-btn:nth-child(2)').classList.remove('active');
+    }
 
-    let name = el("name"+i)?.value;
-    let thumbFile = el("thumb"+i)?.files[0];
-    let files = el("files"+i)?.files;
+    loadGames(showingAll);
+}
 
-    if(!thumbFile || !files || files.length === 0){
-        alert("Upload thumbnail + folder");
+/* =========================
+   SAVE SLOT (Game_Master Only)
+========================= */
+async function saveSlot(i){
+    if(!isAdmin()){
+        alert("Only Game_Master can save games");
         return;
     }
 
-    let thumbReader = new FileReader();
+    const name = document.getElementById("name"+i)?.value;
+    const thumbFile = document.getElementById("thumb"+i)?.files[0];
+    const gameFiles = document.getElementById("files"+i)?.files;
 
-    thumbReader.onload = function(e){
+    if(!name){
+        alert("Please enter a game name");
+        return;
+    }
 
-        let gameFiles = {};
+    if(!thumbFile){
+        alert("Please upload a thumbnail image");
+        return;
+    }
+
+    if(!gameFiles || gameFiles.length === 0){
+        alert("Please upload game folder with index.html");
+        return;
+    }
+
+    // Check for index.html
+    let hasIndex = false;
+    for(let f of gameFiles){
+        if(f.name.toLowerCase() === "index.html"){
+            hasIndex = true;
+            break;
+        }
+    }
+    if(!hasIndex){
+        alert("Game folder must contain index.html");
+        return;
+    }
+
+    // Read thumbnail
+    const thumbReader = new FileReader();
+    thumbReader.onload = async function(e){
+        const thumbData = e.target.result;
+
+        // Read all game files
+        const fileData = {};
         let loaded = 0;
-        let total = files.length;
 
-        for(let f of files){
-
-            let reader = new FileReader();
-
+        for(let f of gameFiles){
+            const reader = new FileReader();
             reader.onload = function(ev){
-                gameFiles[f.webkitRelativePath] = ev.target.result;
+                fileData[f.webkitRelativePath || f.name] = ev.target.result;
                 loaded++;
-                if(loaded === total) finish();
+                if(loaded === gameFiles.length){
+                    finishSave(i, name, thumbData, fileData);
+                }
             };
-
             reader.onerror = function(){
                 loaded++;
-                if(loaded === total) finish();
+                if(loaded === gameFiles.length){
+                    finishSave(i, name, thumbData, fileData);
+                }
             };
-
             reader.readAsDataURL(f);
         }
-
-        function finish(){
-            games[i] = {
-                name: name || "Untitled Game",
-                players: 0,
-                thumb: e.target.result,
-                files: gameFiles
-            };
-
-            saveGames();
-            render();
-        }
     };
-
     thumbReader.readAsDataURL(thumbFile);
 }
 
+async function finishSave(i, name, thumbData, fileData){
+    try {
+        await FireDB.saveGame(i, {
+            name,
+            thumbnail: thumbData,
+            gameFiles: fileData,
+            publish: false
+        });
+
+        alert("Game saved! Click Publish to make it visible to all users.");
+        loadGames(showingAll);
+    } catch(err){
+        alert("Save error: " + err.message);
+    }
+}
+
 /* =========================
-   DELETE
+   TOGGLE PUBLISH (Game_Master Only)
 ========================= */
-function deleteSlot(i){
-    games[i] = null;
-    saveGames();
-    render();
+async function togglePublish(i){
+    if(!isAdmin()){
+        alert("Only Game_Master can publish games");
+        return;
+    }
+
+    const game = games.find(g => g.slot_index === i);
+    if(!game || !game.name){
+        alert("Save the game first before publishing");
+        return;
+    }
+
+    const newPublished = game.published === true ? false : true;
+
+    try {
+        await FireDB.saveGame(i, {
+            name: game.name,
+            thumbnail: game.thumbnail,
+            gameFiles: game.game_files,
+            publish: newPublished
+        });
+
+        alert(newPublished ? "Game published! Now visible to all users." : "Game unpublished.");
+        loadGames(showingAll);
+    } catch(err){
+        alert("Publish error: " + err.message);
+    }
+}
+
+/* =========================
+   DELETE SLOT (Game_Master Only)
+========================= */
+async function deleteSlot(i){
+    if(!isAdmin()){
+        alert("Only Game_Master can delete games");
+        return;
+    }
+
+    if(!confirm("Delete this game? This will reset the slot to empty.")) return;
+
+    try {
+        await FireDB.deleteGame(i);
+        loadGames(showingAll);
+    } catch(err){
+        alert("Delete error: " + err.message);
+    }
 }
 
 /* =========================
    PLAY GAME
 ========================= */
-function play(i){
-
-    let g = games[i];
-    if(!g) return;
-
-    if(!canPlayGames()){
-        alert("Login required");
+async function playGame(i){
+    if(!currentUser){
+        alert("Login required to play games");
         window.location.href = "login.html";
         return;
     }
 
-    g.players = (g.players || 0) + 1;
-    saveGames();
-    render();
-
-    let mainKey = Object.keys(g.files || {}).find(p =>
-        p && p.toLowerCase().endsWith("index.html")
-    );
-
-    let main = g.files?.[mainKey];
-
-    if(!main){
-        alert("index.html not found");
+    const game = games.find(g => g.slot_index === i);
+    if(!game || !game.name){
+        alert("No game in this slot");
         return;
     }
 
-    let frame = el("gameFrame");
-    let overlay = el("gameOverlay");
+    // Increment play count
+    await FireDB.incrementPlayCount(i);
 
-    if(frame && overlay){
+    // Parse game files
+    let gameFiles = {};
+    try {
+        gameFiles = typeof game.game_files === 'string' ? JSON.parse(game.game_files) : game.game_files;
+    } catch(e){
+        alert("Error loading game files");
+        return;
+    }
+
+    // Find index.html
+    let mainKey = Object.keys(gameFiles).find(p => p.toLowerCase().endsWith("index.html"));
+
+    if(!mainKey){
+        alert("index.html not found in game files");
+        return;
+    }
+
+    const main = gameFiles[mainKey];
+
+    // Open game in overlay
+    const overlay = document.getElementById("gameOverlay");
+    const frame = document.getElementById("gameFrame");
+    const title = document.getElementById("gameTitle");
+
+    if(overlay && frame){
+        title.innerText = "Playing: " + game.name;
         frame.src = main;
         overlay.style.display = "block";
     }
 }
 
-/* =========================
-   AUTO PLAY
-========================= */
-function autoPlayFromQuery(){
+function closeGame(){
+    const overlay = document.getElementById("gameOverlay");
+    const frame = document.getElementById("gameFrame");
 
-    let params = new URLSearchParams(window.location.search);
-    let index = params.get("play");
-
-    if(index !== null){
-        let i = parseInt(index);
-        if(games[i]) play(i);
-    }
+    if(overlay) overlay.style.display = "none";
+    if(frame) frame.src = "";
 }
 
 /* =========================
-   RETURN BUTTON SAFE BIND
+   INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", ()=>{
+    loadUserUI();
+    loadTokens();
 
-    let returnBtn = el("returnBtn");
-
-    if(returnBtn){
-        returnBtn.onclick = function(){
-            let overlay = el("gameOverlay");
-            let frame = el("gameFrame");
-
-            if(overlay) overlay.style.display = "none";
-            if(frame) frame.src = "";
-        };
+    // Show all slots tab for admin
+    if(isAdmin()){
+        document.getElementById("allTabBtn").style.display = "block";
     }
 
-    render();
-    autoPlayFromQuery();
-    syncUserUI();
-    initGlobalMusic();
-});
+    loadGames(false);
 
-/* =========================
-   MUSIC SYSTEM (SAFE)
-========================= */
-function initGlobalMusic(){
-
-    if(window.globalAudio) return;
-
-    let audio = new Audio();
-    audio.loop = true;
-
-    let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
-    let track = parseInt(localStorage.getItem("track")) || 0;
-
-    if(playlist.length && playlist[track]){
-        audio.src = playlist[track].data || playlist[track];
-        audio.currentTime = parseFloat(localStorage.getItem("musicTime")) || 0;
-    }
-
-    if(localStorage.getItem("musicPlaying") === "true"){
-        audio.play().catch(()=>{});
-    }
-
-    document.addEventListener("click", ()=>{
-        audio.play().catch(()=>{});
-    }, {once:true});
-
-    window.globalAudio = audio;
-
-    setInterval(()=>{
-        if(audio.src && !isNaN(audio.currentTime)){
-            localStorage.setItem("musicTime", audio.currentTime);
+    // Sync on storage changes
+    window.addEventListener("storage", (e)=>{
+        if(e.key === "gamesSync"){
+            loadGames(showingAll);
         }
-    }, 500);
-}
-
-/* =========================
-   TOKEN SYSTEM (SAFE)
-========================= */
-function updateTokens(){
-
-    let tokenEl = el("tokens");
-
-    if(tokenEl && currentUser){
-        let t = localStorage.getItem(currentUser+"_tokens") || 0;
-        tokenEl.innerText = "🪙 " + t;
-    }
-}
-
-/* =========================
-   USER UI
-========================= */
-function syncUserUI(){
-
-    let userBox = el("userBox");
-
-    if(userBox && currentUser){
-        userBox.innerHTML = `<span>${currentUser}</span>`;
-    }
-
-    if(currentUser === "Game_Master"){
-        document.querySelectorAll(".admin")
-        .forEach(p => p.style.display = "block");
-    }
-
-    updateTokens();
-}
-
-/* =========================
-   LIVE SYNC
-========================= */
-window.addEventListener("storage", (e)=>{
-
-    if(e.key === "games") render();
-    if(e.key === "userSync") location.reload();
+        if(e.key === "userSync"){
+            location.reload();
+        }
+        if(e.key === "theme"){
+            applyTheme();
+        }
+    });
 });
 
 </script>
+
 </body>
 </html>
