@@ -1,0 +1,11 @@
+# Railpack configuration for Railway
+# https://railpack.com
+
+[build]
+command = "npm install"
+
+[start]
+command = "node server.js"
+
+[environment]
+NODE_ENV = "production"
