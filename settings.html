@@ -216,7 +216,6 @@ margin-top:20px;
 <a href="DailyRewards.html">Daily Rewards</a>
 <a href="shop.html">Shop</a>
 <a href="settings.html">Settings</a>
-<a href="music.html">Music</a>
 </div>
 
 <div class="nav-right">
@@ -291,6 +290,7 @@ function loadTokens(){
 
 /* NAVIGATION */
 function goMusic(){
+    sessionStorage.setItem("musicAccessGrantedAt", String(Date.now()));
     window.location.href = "music.html";
 }
 
