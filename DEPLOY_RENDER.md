@@ -22,7 +22,9 @@ Before deploying, you MUST set up Firebase:
 3. Enable **Firestore Database** (test mode is fine for now)
 4. Enable **Authentication** → Email/Password
 5. Add a Web App and copy the config
-6. Update `firebase-config.js` with your actual config values
+6. Either:
+   - **Option A (recommended on Render):** add the Firebase values as Render Environment Variables (below)
+   - **Option B:** hardcode your Firebase config directly in `firebase-config.js`
 
 ### 3. Deploy to Render
 
@@ -41,7 +43,15 @@ Before deploying, you MUST set up Firebase:
 ### 4. Add Environment Variables (Optional)
 In Render dashboard → Environment:
 - `NODE_ENV`: `production`
-- `PORT`: `3000` (usually set automatically)
+- `PORT`: (Render sets this automatically)
+
+If you use **Option A**, add these too:
+- `FIREBASE_API_KEY`
+- `FIREBASE_AUTH_DOMAIN`
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_STORAGE_BUCKET`
+- `FIREBASE_MESSAGING_SENDER_ID`
+- `FIREBASE_APP_ID`
 
 ### 5. Wait for Deploy
 Render will build and deploy your site. You'll get a URL like:
@@ -66,6 +76,8 @@ const firebaseConfig = {
   appId: "1:123456789:web:abcdef123456"
 };
 ```
+
+If you use environment variables, the server automatically exposes them to the browser via `firebase-env.js` (loaded before `firebase-config.js` on every page).
 
 ### Game_Master Account
 After deploying, create the admin account:

@@ -8,7 +8,12 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-env.js"></script>
 <script src="firebase-config.js"></script>
+
+<!-- Shared Styles & Animations -->
+<link rel="stylesheet" href="styles.css">
+<script src="animations.js"></script>
 
 <script>
 function applyTheme(){
@@ -64,6 +69,14 @@ box-shadow:0 0 20px rgba(59,130,246,0.4);
 .nav-center{display:flex;gap:30px;margin:auto;}
 .nav a{color:var(--text);text-decoration:none;padding:8px 14px;border-radius:10px;}
 .nav a:hover{background:var(--card);}
+
+/* Page-specific: games grid animation */
+.games{display:flex;gap:10px;margin-top:10px;}
+.game{flex:1;animation:scaleIn 0.3s ease-out backwards;}
+.game:nth-child(1){animation-delay:0.1s;}
+.game:nth-child(2){animation-delay:0.15s;}
+.game:nth-child(3){animation-delay:0.2s;}
+.game:nth-child(4){animation-delay:0.25s;}
 .user-box{display:flex;align-items:center;gap:10px;}
 
 /* MAIN */
@@ -135,10 +148,6 @@ color:white;
 cursor:pointer;
 margin-top:10px;
 font-size:16px;
-}
-
-.admin button:hover{
-opacity:0.9;
 }
 
 .token{
@@ -222,6 +231,8 @@ font-size:30px;
    USER STATE
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
+let currentUid = localStorage.getItem("currentUid");
+let isAdminUser = false;
 
 function loadUserUI(){
     let box = document.getElementById("userBox");
@@ -259,8 +270,17 @@ function loadTokens(){
     el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
 }
 
-function isAdmin(){
-    return currentUser === "Game_Master";
+async function resolveAdmin(){
+    isAdminUser = false;
+    if(!currentUser || !currentUid || !window.FireDB) return false;
+    try{
+        const data = await FireDB.getUserData(currentUid);
+        isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
+        return isAdminUser;
+    }catch(_){
+        isAdminUser = false;
+        return false;
+    }
 }
 
 /* =========================
@@ -310,7 +330,7 @@ function apply(d){
    ADMIN SAVE
 ========================= */
 async function save(){
-    if(!isAdmin()){
+    if(!isAdminUser){
         alert("Admin only");
         return;
     }
@@ -343,7 +363,7 @@ async function loadTopGames(){
         const games = await FireDB.getGames(true); // published only
         const top = games
             .filter(g => g && g.name)
-            .sort((a,b) => (b.players||0) - (a.players||0))
+            .sort((a,b) => ((b.plays_week ?? b.players) || 0) - ((a.plays_week ?? a.players) || 0))
             .slice(0, 4);
 
         const wrap = document.getElementById("gamesContainer");
@@ -357,8 +377,8 @@ async function loadTopGames(){
         wrap.innerHTML = top.map((g,i) => `
             <div class="game">
                 <strong>#${i+1} ${g.name}</strong>
-                <p>👥 ${g.players || 0}</p>
-                <button onclick="openGame(${g.slot_index})"
+                <p>▶ ${(g.plays_week ?? g.players) || 0} plays (this week)</p>
+                <button onclick="openGameById('${g.id}')"
                 style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent);color:white;cursor:pointer;margin-top:8px;">
                 ${currentUser ? "Play" : "Login Required"}
                 </button>
@@ -373,13 +393,13 @@ function canPlayGames(){
     return !!currentUser;
 }
 
-function openGame(i){
+function openGameById(gameId){
     if(!canPlayGames()){
         alert("Login required");
         window.location.href = "login.html";
         return;
     }
-    window.location.href = "Games.html?play=" + i;
+    window.location.href = "Games.html?playId=" + encodeURIComponent(gameId);
 }
 
 /* =========================
@@ -389,7 +409,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     loadUserUI();
     loadTokens();
 
-    if(isAdmin()){
+    await resolveAdmin();
+    if(isAdminUser){
         document.getElementById("adminPanel").style.display = "block";
     }
 

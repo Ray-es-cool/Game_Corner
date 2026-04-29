@@ -1,0 +1,489 @@
+/* =========================
+   CRITSTRIKE GLOBAL STYLES
+   Shared CSS with animations
+========================= */
+
+/* =========================
+   PAGE TRANSITIONS
+========================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Page load animation */
+body {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Navigation slide in */
+.nav {
+  animation: slideInDown 0.5s ease-out;
+}
+
+/* Main content fade in */
+.main,
+.container {
+  animation: fadeIn 0.5s ease-out 0.1s backwards;
+}
+
+/* Cards stagger animation */
+.card,
+.item,
+.game {
+  animation: scaleIn 0.3s ease-out backwards;
+}
+
+.card:nth-child(1) { animation-delay: 0.1s; }
+.card:nth-child(2) { animation-delay: 0.15s; }
+.card:nth-child(3) { animation-delay: 0.2s; }
+.card:nth-child(4) { animation-delay: 0.25s; }
+.card:nth-child(5) { animation-delay: 0.3s; }
+.card:nth-child(6) { animation-delay: 0.35s; }
+.card:nth-child(7) { animation-delay: 0.4s; }
+.card:nth-child(8) { animation-delay: 0.45s; }
+
+/* =========================
+   BUTTON ANIMATIONS
+========================= */
+button,
+.nav a,
+.theme-btn,
+.setting-btn,
+.card button,
+.item button,
+.game button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+/* Hover scale effect */
+button:hover,
+.nav a:hover,
+.theme-btn:hover,
+.setting-btn:hover,
+.card button:hover,
+.item button:hover,
+.game button:hover {
+  transform: scale(1.05);
+}
+
+/* Active/click effect */
+button:active,
+.nav a:active,
+.theme-btn:active,
+.setting-btn:active,
+.card button:active,
+.item button:active,
+.game button:active {
+  transform: scale(0.95);
+}
+
+/* Ripple effect container */
+button,
+.nav a,
+.theme-btn,
+.setting-btn {
+  overflow: hidden;
+}
+
+/* Ripple animation */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Ripple element styles */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+/* Dark theme ripple */
+.theme-dark .ripple {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Light theme ripple */
+.theme-light .ripple {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Pink theme ripple */
+.theme-pink .ripple {
+  background: rgba(255, 79, 163, 0.4);
+}
+
+/* =========================
+   HOVER EFFECTS
+========================= */
+/* Card hover lift */
+.card,
+.item,
+.game,
+.box {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover,
+.item:hover,
+.game:hover,
+.box:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+/* Nav link hover */
+.nav a {
+  transition: all 0.2s ease;
+}
+
+.nav a:hover {
+  background: var(--card);
+  transform: translateY(-1px);
+}
+
+/* =========================
+   LOADING SPINNER
+========================= */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--card);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* =========================
+   UTILITY ANIMATIONS
+========================= */
+/* Fade in element */
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Slide up element */
+.slide-up {
+  animation: slideInUp 0.4s ease-out;
+}
+
+/* Scale in element */
+.scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Bounce effect (for rewards) */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bounce {
+  animation: bounce 0.5s ease-in-out infinite;
+}
+
+/* Glow effect */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+  }
+}
+
+.glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* =========================
+   TRANSITION UTILITIES
+========================= */
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Transition classes for JS */
+.transition-hidden {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.transition-visible {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* =========================
+   FORM ELEMENTS
+========================= */
+input,
+textarea,
+select {
+  transition: all 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  transform: scale(1.01);
+}
+
+/* =========================
+   TOKEN COUNTER
+========================= */
+.token {
+  animation: slideInUp 0.5s ease-out;
+  transition: transform 0.2s ease;
+}
+
+.token:hover {
+  transform: translateX(-50%) scale(1.1);
+}
+
+/* =========================
+   MODAL/OVERLAY ANIMATIONS
+========================= */
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.game-overlay {
+  animation: overlayFadeIn 0.3s ease-out;
+}
+
+.game-container {
+  animation: modalSlideIn 0.4s ease-out;
+}
+
+/* =========================
+   PROGRESS BAR
+========================= */
+@keyframes progressFill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.progress-bar {
+  position: relative;
+  height: 4px;
+  background: var(--card);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  animation: progressFill 2s ease-out;
+}
+
+/* =========================
+   TEXT GRADIENT ANIMATION
+========================= */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, var(--accent), #8b5cf6, var(--accent));
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* =========================
+   NOTIFICATION TOAST
+========================= */
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  padding: 12px 24px;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+  animation: toastSlideIn 0.3s ease-out;
+}
+
+/* =========================
+   PAGE TRANSITION OVERLAY
+========================= */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.page-transition-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 5000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  animation: overlayIn 0.18s ease-out;
+}
+
+.page-transition-overlay.show {
+  display: flex;
+}
+
+.page-transition-card {
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-transition-text {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* =========================
+   DISABLE ANIMATIONS (prefers-reduced-motion)
+========================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

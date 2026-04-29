@@ -8,7 +8,12 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase-env.js"></script>
 <script src="firebase-config.js"></script>
+
+<!-- Shared Styles & Animations -->
+<link rel="stylesheet" href="styles.css">
+<script src="animations.js"></script>
 
 <script>
 function applyTheme(){
@@ -159,6 +164,15 @@ button:disabled{
     cursor:not-allowed;
 }
 
+/* Music player enhancements */
+.song:hover {
+    transform: translateX(5px);
+}
+
+.song.selected {
+    animation: glow 2s ease-in-out infinite;
+}
+
 input[type="range"]{
     width:100%;
     margin-top:10px;
@@ -268,8 +282,23 @@ input[type="range"]{
    USER SYSTEM
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
+let currentUid = localStorage.getItem("currentUid");
+let isAdminUser = false;
 let selectedIndex = 0;
 let playlist = [];
+
+async function resolveAdmin(){
+    isAdminUser = false;
+    if(!currentUser || !currentUid || !window.FireDB) return false;
+    try{
+        const data = await FireDB.getUserData(currentUid);
+        isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
+        return isAdminUser;
+    }catch(_){
+        isAdminUser = false;
+        return false;
+    }
+}
 
 function loadUserUI(){
     let box = document.getElementById("userBox");
@@ -331,7 +360,7 @@ function renderPlaylist(){
         div.className = "song";
         if(i === selectedIndex) div.classList.add("selected");
 
-        const deleteBtn = currentUser === "Game_Master"
+        const deleteBtn = isAdminUser
             ? `<button class="delete-btn" onclick="deleteSong('${song.id}', event)">🗑</button>`
             : "";
 
@@ -439,7 +468,7 @@ if(slider){
    ADMIN FUNCTIONS (Game_Master Only)
 ========================= */
 function isAdmin(){
-    return currentUser === "Game_Master";
+    return isAdminUser;
 }
 
 async function uploadSong(){
@@ -549,7 +578,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     loadTokens();
     syncVolume();
 
-    if(isAdmin()){
+    await resolveAdmin();
+    if(isAdminUser){
         document.getElementById("adminPanel").style.display = "block";
     }
 

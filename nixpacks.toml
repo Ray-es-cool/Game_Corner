@@ -1,11 +1,20 @@
+# Nixpacks configuration for Railway deployment
+# https://railway.app/docs/guides/nixpacks
+
 [phases.setup]
-nixPkgs = ["nodejs-20.x"]
+nixPkgs = ["nodejs-18_x"]
 
 [phases.install]
-cmds = ["npm install --production=false"]
+# Install dependencies
+cmds = ["npm install"]
 
 [phases.build]
-cmds = []
+# No build step needed - static files served directly
+cmds = ["echo 'Build complete'"]
 
 [start]
+# Start the Express server
 cmd = "node server.js"
+
+[variables]
+NODE_ENV = "production"
