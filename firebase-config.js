@@ -10,9 +10,11 @@
    5. Add a Web App and copy the config
    6. Replace the config values below
 
-   RAILWAY DEPLOYMENT:
-   - Add the Firebase config values as environment variables in Railway
-   - See .env.example for the variable names
+   RENDER DEPLOYMENT:
+   - Add Firebase config as environment variables in Render Dashboard
+   - Variables: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID,
+     FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID
+   - Server injects config at runtime via /firebase-env.js
 ========================= */
 
 // Browser-only guard
