@@ -66,6 +66,22 @@ app.get("/firebase-env.js", (req, res) => {
   );
 });
 
+// Runtime Supabase env injection for browser
+app.get("/supabase-env.js", (req, res) => {
+  res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+
+  const cfg = {
+    url: process.env.SUPABASE_URL || "",
+    anonKey: process.env.SUPABASE_ANON_KEY || ""
+  };
+
+  res.status(200).send(
+    `// Auto-generated at request time\n` +
+    `window.__SUPABASE_CONFIG__ = ${JSON.stringify(cfg)};\n`
+  );
+});
+
 // Health check endpoint for Railway monitoring
 app.get("/api/health", (req, res) => {
   res.json({
