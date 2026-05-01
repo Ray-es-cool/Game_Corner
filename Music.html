@@ -16,15 +16,7 @@
 <script src="animations.js"></script>
 
 <script>
-const MUSIC_ACCESS_MAX_AGE_MS = 2 * 60 * 60 * 1000;
-function enforceMusicAccessFromSettings(){
-    const raw = sessionStorage.getItem("musicAccessGrantedAt");
-    const ts = raw ? parseInt(raw, 10) : NaN;
-    if(!ts || Number.isNaN(ts) || (Date.now() - ts) > MUSIC_ACCESS_MAX_AGE_MS){
-        window.location.replace("settings.html");
-    }
-}
-enforceMusicAccessFromSettings();
+// Music is accessible from settings only (no enforcement - direct access)
 
 function applyTheme(){
     let theme = localStorage.getItem("theme") || "dark";
