@@ -17,7 +17,7 @@ const supabaseUrl = window.__SUPABASE_CONFIG__?.url ||
 
 const supabaseKey = window.__SUPABASE_CONFIG__?.anonKey ||
                     window.SUPABASE_CONFIG?.anonKey ||
-                    "YOUR_ANON_KEY_HERE";
+                    "sb_publishable_zAflCRCuqtHnWQXZnuD1HQ_OZrN9_Fp";
 
 // Check if config is still default
 const isDefaultConfig = !supabaseKey ||
