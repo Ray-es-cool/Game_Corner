@@ -186,6 +186,15 @@ font-size:18px;
 <div class="title">Shop</div>
 
 <div class="shop-grid" id="shopGrid">
+    <!-- Red Theme -->
+    <div class="item">
+        <div style="width:60px;height:60px;border-radius:50%;background:#ef4444;margin:0 auto 15px;box-shadow:0 0 20px rgba(239,68,68,0.6);"></div>
+        <h3>Red Theme</h3>
+        <p>Bold red gaming theme</p>
+        <p style="font-size:18px;font-weight:bold;color:#ef4444;">🪙 100</p>
+        <button onclick="buyRedTheme()" id="buyRedBtn">Buy Now</button>
+    </div>
+
     <!-- Lime Green Theme -->
     <div class="item">
         <div style="width:60px;height:60px;border-radius:50%;background:#4ade80;margin:0 auto 15px;box-shadow:0 0 20px rgba(74,222,128,0.6);"></div>
@@ -257,6 +266,41 @@ window.addEventListener("storage",(e)=>{
 /* =========================
    SHOP FUNCTIONS
 ========================= */
+function buyRedTheme(){
+    if(!currentUser){
+        alert("Login required to purchase items");
+        window.location.href = "login.html";
+        return;
+    }
+
+    const currentTokens = parseInt(localStorage.getItem(currentUser+"_tokens") || 0);
+    const price = 100;
+
+    if(currentTokens < price){
+        alert("Not enough tokens! You need 100 tokens.");
+        return;
+    }
+
+    // Check if already owned
+    const ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    if(ownedThemes.includes("red")){
+        alert("You already own the Red theme!");
+        return;
+    }
+
+    // Deduct tokens and add theme
+    const newTokens = currentTokens - price;
+    localStorage.setItem(currentUser+"_tokens", newTokens);
+    ownedThemes.push("red");
+    localStorage.setItem(currentUser+"_themes", JSON.stringify(ownedThemes));
+
+    // Sync across pages
+    localStorage.setItem("tokenSync", Date.now());
+
+    alert("🎉 Red theme purchased! Check it out in Settings > Themes");
+    loadTokens();
+}
+
 function buyLimeTheme(){
     if(!currentUser){
         alert("Login required to purchase items");
@@ -299,9 +343,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
     loadUserUI();
     loadTokens();
 
-    // Check if already owned and disable button
+    // Check if already owned and disable buttons
     if(currentUser){
         const ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+
+        if(ownedThemes.includes("red")){
+            const btn = document.getElementById("buyRedBtn");
+            if(btn){
+                btn.disabled = true;
+                btn.innerText = "Already Owned";
+            }
+        }
+
         if(ownedThemes.includes("lime")){
             const btn = document.getElementById("buyLimeBtn");
             if(btn){

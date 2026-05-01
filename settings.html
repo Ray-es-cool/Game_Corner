@@ -57,6 +57,15 @@ root.style.setProperty("--accent", "#4ade80");
 root.style.setProperty("--text", "white");
 }
 
+/* RED */
+if(theme === "red"){
+root.style.setProperty("--bg", "#1a0a0a");
+root.style.setProperty("--panel", "#2f1a1a");
+root.style.setProperty("--card", "#4a2d2d");
+root.style.setProperty("--accent", "#ef4444");
+root.style.setProperty("--text", "white");
+}
+
 }
 applyTheme();
 
@@ -207,6 +216,11 @@ background:#1a2f1a;
 color:#4ade80;
 }
 
+.theme-btn.red{
+background:#2f1a1a;
+color:#ef4444;
+}
+
 .theme-btn.active{
 border:3px solid var(--accent);
 }
@@ -249,6 +263,7 @@ margin-top:20px;
     <button class="theme-btn dark" onclick="setTheme('dark')">Dark</button>
     <button class="theme-btn light" onclick="setTheme('light')">Light</button>
     <button class="theme-btn pink" onclick="setTheme('pink')">Pink</button>
+    <button class="theme-btn red" onclick="setTheme('red')" id="redThemeBtn" style="display:none;">Red</button>
     <button class="theme-btn lime" onclick="setTheme('lime')" id="limeThemeBtn" style="display:none;">Lime</button>
 </div>
 
@@ -371,6 +386,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
     // Load owned themes
     if(currentUser){
         const ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+        if(ownedThemes.includes("red")){
+            document.getElementById("redThemeBtn").style.display = "block";
+        }
         if(ownedThemes.includes("lime")){
             document.getElementById("limeThemeBtn").style.display = "block";
         }
