@@ -263,9 +263,23 @@ function logoutUser(){
     location.reload();
 }
 
-function loadTokens(){
+async function loadTokens(){
     let el = document.getElementById("tokens");
     if(!el || !currentUser) return;
+
+    // Try to load from Firebase first
+    if(currentUid && window.FireDB){
+        try {
+            const userData = await FireDB.getUserData(currentUid);
+            if(userData && userData.tokens !== undefined){
+                localStorage.setItem(currentUser+"_tokens", userData.tokens);
+                el.innerText = "🪙 " + userData.tokens;
+                return;
+            }
+        } catch(e) {
+            // Fallback to localStorage
+        }
+    }
     el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
 }
 
@@ -406,7 +420,7 @@ function openGameById(gameId){
 ========================= */
 document.addEventListener("DOMContentLoaded", async ()=>{
     loadUserUI();
-    loadTokens();
+    await loadTokens(); // Load from Firebase
 
     await resolveAdmin();
     if(isAdminUser){

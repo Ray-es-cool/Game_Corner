@@ -377,14 +377,20 @@ window.addEventListener("storage",(e)=>{
 });
 
 /* INIT */
-document.addEventListener("DOMContentLoaded", ()=>{
+document.addEventListener("DOMContentLoaded", async ()=>{
     loadUser();
     loadTokens();
     syncVolume();
 
-    // Load owned themes
-    if(currentUser){
-        const ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    // Load owned themes from Firebase (or localStorage fallback)
+    if(currentUser && currentUid){
+        let ownedThemes = [];
+        try {
+            ownedThemes = await FireDB.getUserThemes(currentUid) || [];
+        } catch(e) {
+            ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+        }
+
         if(ownedThemes.includes("red")){
             document.getElementById("redThemeBtn").style.display = "block";
         }

@@ -144,6 +144,43 @@ if (isDefaultConfig) {
       });
     },
 
+    // USER THEMES & INVENTORY
+    async getUserThemes(uid) {
+      const doc = await this.users().doc(uid).get();
+      const data = doc.data();
+      return data?.themes || [];
+    },
+
+    async addUserTheme(uid, themeName) {
+      const userRef = this.users().doc(uid);
+      const doc = await userRef.get();
+      const data = doc.data();
+      const themes = data?.themes || [];
+
+      if (!themes.includes(themeName)) {
+        themes.push(themeName);
+        await userRef.update({ themes });
+      }
+    },
+
+    async getUserInventory(uid) {
+      const doc = await this.users().doc(uid).get();
+      const data = doc.data();
+      return data?.inventory || [];
+    },
+
+    async addToInventory(uid, item) {
+      const userRef = this.users().doc(uid);
+      const doc = await userRef.get();
+      const data = doc.data();
+      const inventory = data?.inventory || [];
+
+      if (!inventory.includes(item)) {
+        inventory.push(item);
+        await userRef.update({ inventory });
+      }
+    },
+
     onAuthChange(callback) {
       auth.onAuthStateChanged(callback);
     },

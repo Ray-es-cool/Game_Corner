@@ -264,10 +264,10 @@ window.addEventListener("storage",(e)=>{
 });
 
 /* =========================
-   SHOP FUNCTIONS
+   SHOP FUNCTIONS (Firebase + LocalStorage)
 ========================= */
-function buyRedTheme(){
-    if(!currentUser){
+async function buyRedTheme(){
+    if(!currentUser || !currentUid){
         alert("Login required to purchase items");
         window.location.href = "login.html";
         return;
@@ -281,28 +281,40 @@ function buyRedTheme(){
         return;
     }
 
-    // Check if already owned
-    const ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    // Check if already owned (check Firebase first, then localStorage)
+    let ownedThemes = [];
+    try {
+        ownedThemes = await FireDB.getUserThemes(currentUid) || [];
+    } catch(e) {
+        ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    }
+
     if(ownedThemes.includes("red")){
         alert("You already own the Red theme!");
         return;
     }
 
-    // Deduct tokens and add theme
+    // Deduct tokens (Firebase + localStorage)
     const newTokens = currentTokens - price;
     localStorage.setItem(currentUser+"_tokens", newTokens);
-    ownedThemes.push("red");
-    localStorage.setItem(currentUser+"_themes", JSON.stringify(ownedThemes));
-
-    // Sync across pages
     localStorage.setItem("tokenSync", Date.now());
+
+    // Save to Firebase
+    try {
+        await FireDB.updateTokens(currentUid, newTokens);
+        await FireDB.addUserTheme(currentUid, "red");
+    } catch(e) {
+        // Fallback to localStorage if Firebase fails
+        ownedThemes.push("red");
+        localStorage.setItem(currentUser+"_themes", JSON.stringify(ownedThemes));
+    }
 
     alert("🎉 Red theme purchased! Check it out in Settings > Themes");
     loadTokens();
 }
 
-function buyLimeTheme(){
-    if(!currentUser){
+async function buyLimeTheme(){
+    if(!currentUser || !currentUid){
         alert("Login required to purchase items");
         window.location.href = "login.html";
         return;
@@ -316,21 +328,33 @@ function buyLimeTheme(){
         return;
     }
 
-    // Check if already owned
-    const ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    // Check if already owned (check Firebase first, then localStorage)
+    let ownedThemes = [];
+    try {
+        ownedThemes = await FireDB.getUserThemes(currentUid) || [];
+    } catch(e) {
+        ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    }
+
     if(ownedThemes.includes("lime")){
         alert("You already own the Lime theme!");
         return;
     }
 
-    // Deduct tokens and add theme
+    // Deduct tokens (Firebase + localStorage)
     const newTokens = currentTokens - price;
     localStorage.setItem(currentUser+"_tokens", newTokens);
-    ownedThemes.push("lime");
-    localStorage.setItem(currentUser+"_themes", JSON.stringify(ownedThemes));
-
-    // Sync across pages
     localStorage.setItem("tokenSync", Date.now());
+
+    // Save to Firebase
+    try {
+        await FireDB.updateTokens(currentUid, newTokens);
+        await FireDB.addUserTheme(currentUid, "lime");
+    } catch(e) {
+        // Fallback to localStorage if Firebase fails
+        ownedThemes.push("lime");
+        localStorage.setItem(currentUser+"_themes", JSON.stringify(ownedThemes));
+    }
 
     alert("🎉 Lime theme purchased! Check it out in Settings > Themes");
     loadTokens();
