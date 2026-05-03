@@ -12,6 +12,13 @@ const { createClient } = require('@libsql/client');
 const TURSO_URL = process.env.TURSO_DATABASE_URL || '';
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN || '';
 
+// Check if Turso is configured
+if (!TURSO_URL || !TURSO_TOKEN) {
+  console.error('ERROR: Turso not configured!');
+  console.error('Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables.');
+  console.error('See RENDER_DEPLOYMENT.md for setup instructions.');
+}
+
 // Create Turso client
 const turso = createClient({
   url: TURSO_URL,
@@ -20,8 +27,8 @@ const turso = createClient({
 
 // Initialize tables
 async function initDatabase() {
-  await turso.execute(`
-    CREATE TABLE IF NOT EXISTS users (
+  try {
+    await turso.execute(`
       uid TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
@@ -82,10 +89,17 @@ async function initDatabase() {
   await turso.execute(`CREATE INDEX IF NOT EXISTS idx_games_slot ON games(slot_index)`);
   await turso.execute(`CREATE INDEX IF NOT EXISTS idx_games_published ON games(published)`);
   await turso.execute(`CREATE INDEX IF NOT EXISTS idx_music_order ON music(order_index)`);
+
+  console.log('Database initialized successfully');
 }
 
 // Initialize on load
-initDatabase().catch(err => console.error('Database init error:', err));
+if (TURSO_URL && TURSO_TOKEN) {
+  initDatabase().catch(err => {
+    console.error('Database init error:', err.message);
+    console.error('Check your Turso URL and token are correct.');
+  });
+}
 
 // Helper functions
 function generateId() {
