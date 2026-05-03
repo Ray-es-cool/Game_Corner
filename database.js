@@ -27,8 +27,8 @@ const turso = createClient({
 
 // Initialize tables
 async function initDatabase() {
-  try {
-    await turso.execute(`
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS users (
       uid TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
@@ -90,15 +90,17 @@ async function initDatabase() {
   await turso.execute(`CREATE INDEX IF NOT EXISTS idx_games_published ON games(published)`);
   await turso.execute(`CREATE INDEX IF NOT EXISTS idx_music_order ON music(order_index)`);
 
-  console.log('Database initialized successfully');
+  console.log('[DATABASE] Turso connected and tables initialized');
 }
 
 // Initialize on load
 if (TURSO_URL && TURSO_TOKEN) {
   initDatabase().catch(err => {
-    console.error('Database init error:', err.message);
-    console.error('Check your Turso URL and token are correct.');
+    console.error('[DATABASE] Init error:', err.message);
+    console.error('[DATABASE] Check your Turso URL and token are correct.');
   });
+} else {
+  console.log('[DATABASE] Waiting for Turso configuration...');
 }
 
 // Helper functions
