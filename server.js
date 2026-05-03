@@ -9,6 +9,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const db = require("./database");
 
 const app = express();
 
@@ -103,8 +104,286 @@ app.get("/api", (req, res) => {
   res.json({
     name: "CritStrike API",
     version: "1.0.0",
-    endpoints: ["/health", "/api/health"]
+    database: "SQLite",
+    endpoints: [
+      "/health", "/api/health",
+      "/api/users/signup", "/api/users/login", "/api/users/:username",
+      "/api/games", "/api/music", "/api/site-settings"
+    ]
   });
+});
+
+// =========================
+// USER API ENDPOINTS
+// =========================
+
+app.post("/api/users/signup", async (req, res) => {
+  try {
+    const { username, password, pfp } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: "Username and password required" });
+    }
+
+    const existing = db.getUserByUsername(username);
+    if (existing) {
+      return res.status(409).json({ success: false, error: "Username already exists" });
+    }
+
+    const user = await db.createUser(username, password, pfp);
+    res.json({ success: true, uid: user.uid, username: user.username });
+  } catch (err) {
+    console.error("Signup error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/api/users/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: "Username and password required" });
+    }
+
+    const user = db.getUserByUsername(username);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Invalid credentials" });
+    }
+
+    if (user.password !== password) {
+      return res.status(401).json({ success: false, error: "Invalid credentials" });
+    }
+
+    res.json({
+      success: true,
+      uid: user.uid,
+      username: user.username,
+      tokens: user.tokens,
+      pfp: user.pfp
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.get("/api/users/:username", async (req, res) => {
+  try {
+    const user = db.getUserByUsername(req.params.username);
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      uid: user.uid,
+      username: user.username,
+      tokens: user.tokens,
+      pfp: user.pfp,
+      themes: JSON.parse(user.themes || '[]'),
+      inventory: JSON.parse(user.inventory || '[]')
+    });
+  } catch (err) {
+    console.error("Get user error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.get("/api/users/uid/:uid", async (req, res) => {
+  try {
+    const user = db.getUserByUid(req.params.uid);
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      uid: user.uid,
+      username: user.username,
+      tokens: user.tokens,
+      pfp: user.pfp,
+      themes: JSON.parse(user.themes || '[]'),
+      inventory: JSON.parse(user.inventory || '[]')
+    });
+  } catch (err) {
+    console.error("Get user by uid error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/api/users/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    const updates = req.body;
+    const user = db.getUserByUsername(username);
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    if (updates.tokens !== undefined) {
+      await db.updateTokens(user.uid, updates.tokens);
+    }
+    if (updates.themes !== undefined) {
+      await db.updateUserThemes(user.uid, updates.themes);
+    }
+    if (updates.inventory !== undefined) {
+      await db.addToInventory(user.uid, updates.inventory);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Update user error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// =========================
+// GAMES API ENDPOINTS
+// =========================
+
+app.get("/api/games", async (req, res) => {
+  try {
+    const publishedOnly = req.query.published === 'true';
+    const games = await db.getGames(publishedOnly);
+    res.json({ success: true, games });
+  } catch (err) {
+    console.error("Get games error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/api/games", async (req, res) => {
+  try {
+    const { slotIndex, gameData } = req.body;
+
+    if (slotIndex !== undefined) {
+      const id = await db.saveGame(slotIndex, gameData);
+      res.json({ success: true, id });
+    } else {
+      const id = await db.createGame(gameData);
+      res.json({ success: true, id });
+    }
+  } catch (err) {
+    console.error("Save game error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.delete("/api/games/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.deleteGameById(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete game error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/api/games/:id/play", async (req, res) => {
+  try {
+    await db.incrementPlayCountById(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Increment play error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/api/games/:id/credit", async (req, res) => {
+  try {
+    const { eligible } = req.body;
+    await db.setGameCreditEligible(req.params.id, eligible);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Set credit error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// =========================
+// MUSIC API ENDPOINTS
+// =========================
+
+app.get("/api/music", async (req, res) => {
+  try {
+    const playlist = await db.getPlaylist();
+    res.json({ success: true, playlist });
+  } catch (err) {
+    console.error("Get music error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/api/music", async (req, res) => {
+  try {
+    const { name, fileData, fileType } = req.body;
+    const id = await db.uploadMusic(name, fileData, fileType);
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error("Upload music error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.delete("/api/music/:id", async (req, res) => {
+  try {
+    await db.deleteMusic(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete music error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.delete("/api/music", async (req, res) => {
+  try {
+    await db.clearAllMusic();
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Clear music error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// =========================
+// SITE SETTINGS API ENDPOINTS
+// =========================
+
+app.get("/api/site-settings", async (req, res) => {
+  try {
+    const settings = await db.getSiteSettings();
+    res.json({ success: true, settings });
+  } catch (err) {
+    console.error("Get site settings error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/api/site-settings", async (req, res) => {
+  try {
+    await db.saveSiteSettings(req.body);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Save site settings error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// =========================
+// META API ENDPOINTS
+// =========================
+
+app.get("/api/meta/weekly-reset", async (req, res) => {
+  try {
+    const result = await db.ensureWeeklyReset();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Weekly reset error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
 });
 
 // Catch-all route - serve index.html for any unknown routes
@@ -129,7 +408,7 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log("=".repeat(50));
   console.log(`  PORT: ${PORT}`);
   console.log(`  ENV: ${process.env.NODE_ENV || "production"}`);
-  console.log(`  DATABASE: Firebase Firestore (Cloud)`);
+  console.log(`  DATABASE: SQLite (Local File)`);
   console.log(`  HEALTH: http://localhost:${PORT}/health`);
   console.log("=".repeat(50) + "\n");
   console.log("  IMPORTANT: Configure Firebase in firebase-config.js");
