@@ -157,7 +157,15 @@ window.SQLiteDB = {
   },
 
   async updateGameById(gameId, patch) {
-    // Would need a PUT/PATCH endpoint
+    const res = await fetch(`${API_URL}/api/games/${gameId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch)
+    });
+    const result = await res.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update game');
+    }
   },
 
   async deleteGameById(gameId) {

@@ -14,6 +14,7 @@ const path = require('path');
 const DB_PATH = path.join(__dirname, 'critstrike.db');
 
 let db = null;
+let dbReady = false;
 
 // Initialize database
 async function initDatabase() {
@@ -93,6 +94,7 @@ async function initDatabase() {
 
   // Save initial database
   saveDatabase();
+  dbReady = true;
 
   console.log('[DATABASE] SQLite initialized: ' + DB_PATH);
 }
@@ -145,10 +147,21 @@ function getRows(stmt, params = []) {
   return rows;
 }
 
-// Database API
+// Database API - all methods are async for compatibility
 module.exports = {
+  // Wait for database to be ready
+  waitForReady() {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (dbReady) resolve();
+        else setTimeout(check, 50);
+      };
+      check();
+    });
+  },
+
   // USERS
-  createUser(username, password, pfp) {
+  async createUser(username, password, pfp) {
     const uid = generateId();
     db.run(`
       INSERT INTO users (uid, username, password, pfp, tokens, themes, inventory)
@@ -158,35 +171,35 @@ module.exports = {
     return { uid, username };
   },
 
-  getUserByUsername(username) {
+  async getUserByUsername(username) {
     const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
     return getRow(stmt, [username]);
   },
 
-  getUserByUid(uid) {
+  async getUserByUid(uid) {
     const stmt = db.prepare('SELECT * FROM users WHERE uid = ?');
     return getRow(stmt, [uid]);
   },
 
-  updateTokens(uid, tokens) {
+  async updateTokens(uid, tokens) {
     db.run('UPDATE users SET tokens = ? WHERE uid = ?', [tokens, uid]);
     saveDatabase();
   },
 
-  incrementTokens(uid, delta) {
-    const user = this.getUserByUid(uid);
+  async incrementTokens(uid, delta) {
+    const user = await this.getUserByUid(uid);
     if (user) {
-      this.updateTokens(uid, user.tokens + delta);
+      await this.updateTokens(uid, user.tokens + delta);
     }
   },
 
-  getUserThemes(uid) {
-    const user = this.getUserByUid(uid);
+  async getUserThemes(uid) {
+    const user = await this.getUserByUid(uid);
     return user ? JSON.parse(user.themes || '[]') : [];
   },
 
-  addUserTheme(uid, themeName) {
-    const themes = this.getUserThemes(uid);
+  async addUserTheme(uid, themeName) {
+    const themes = await this.getUserThemes(uid);
     if (!themes.includes(themeName)) {
       themes.push(themeName);
       db.run('UPDATE users SET themes = ? WHERE uid = ?', [JSON.stringify(themes), uid]);
@@ -194,13 +207,18 @@ module.exports = {
     }
   },
 
-  getUserInventory(uid) {
-    const user = this.getUserByUid(uid);
+  async updateUserThemes(uid, themes) {
+    db.run('UPDATE users SET themes = ? WHERE uid = ?', [JSON.stringify(themes), uid]);
+    saveDatabase();
+  },
+
+  async getUserInventory(uid) {
+    const user = await this.getUserByUid(uid);
     return user ? JSON.parse(user.inventory || '[]') : [];
   },
 
-  addToInventory(uid, item) {
-    const inventory = this.getUserInventory(uid);
+  async addToInventory(uid, item) {
+    const inventory = await this.getUserInventory(uid);
     if (!inventory.includes(item)) {
       inventory.push(item);
       db.run('UPDATE users SET inventory = ? WHERE uid = ?', [JSON.stringify(inventory), uid]);
@@ -209,7 +227,7 @@ module.exports = {
   },
 
   // GAMES
-  getGames(publishedOnly = false) {
+  async getGames(publishedOnly = false) {
     let stmt;
     if (publishedOnly) {
       stmt = db.prepare('SELECT * FROM games WHERE published = 1 ORDER BY plays_week DESC');
@@ -223,13 +241,14 @@ module.exports = {
     }));
   },
 
-  saveGame(slotIndex, gameData) {
+  async saveGame(slotIndex, gameData) {
     const creditEligible = typeof gameData.creditEligible === 'boolean'
       ? (gameData.creditEligible ? 1 : 0)
       : null;
 
     // Check if exists
-    const existing = db.prepare('SELECT * FROM games WHERE slot_index = ?').get([slotIndex]);
+    const stmt = db.prepare('SELECT * FROM games WHERE slot_index = ?');
+    const existing = getRow(stmt, [slotIndex]);
 
     if (existing) {
       db.run(`
@@ -267,7 +286,7 @@ module.exports = {
     }
   },
 
-  createGame(gameData) {
+  async createGame(gameData) {
     const id = generateId();
     const creditEligible = typeof gameData.creditEligible === 'boolean'
       ? (gameData.creditEligible ? 1 : 0)
@@ -288,8 +307,9 @@ module.exports = {
     return id;
   },
 
-  updateGameById(gameId, patch) {
-    const game = db.prepare('SELECT * FROM games WHERE id = ?').get([gameId]);
+  async updateGameById(gameId, patch) {
+    const stmt = db.prepare('SELECT * FROM games WHERE id = ?');
+    const game = getRow(stmt, [gameId]);
     if (!game) return;
 
     const updates = { ...game, ...patch };
@@ -318,17 +338,17 @@ module.exports = {
     saveDatabase();
   },
 
-  deleteGameById(gameId) {
+  async deleteGameById(gameId) {
     db.run('DELETE FROM games WHERE id = ?', [gameId]);
     saveDatabase();
   },
 
-  deleteGame(slotIndex) {
+  async deleteGame(slotIndex) {
     db.run('DELETE FROM games WHERE slot_index = ?', [slotIndex]);
     saveDatabase();
   },
 
-  incrementPlayCountById(gameId) {
+  async incrementPlayCountById(gameId) {
     db.run(`
       UPDATE games SET
         players = players + 1,
@@ -340,7 +360,7 @@ module.exports = {
     saveDatabase();
   },
 
-  incrementPlayCount(slotIndex) {
+  async incrementPlayCount(slotIndex) {
     db.run(`
       UPDATE games SET
         players = players + 1,
@@ -352,14 +372,15 @@ module.exports = {
     saveDatabase();
   },
 
-  setGameCreditEligible(gameId, eligible) {
+  async setGameCreditEligible(gameId, eligible) {
     db.run('UPDATE games SET credit_eligible = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [eligible ? 1 : 0, gameId]);
     saveDatabase();
   },
 
-  ensureWeeklyReset() {
+  async ensureWeeklyReset() {
     const weekKey = getWeekKey();
-    const metaResult = db.prepare('SELECT value FROM meta WHERE key = ?').get(['weekly_reset']);
+    const stmt = db.prepare('SELECT value FROM meta WHERE key = ?');
+    const metaResult = getRow(stmt, ['weekly_reset']);
 
     const prevWeek = metaResult ? JSON.parse(metaResult.value).weekKey : null;
 
@@ -378,12 +399,12 @@ module.exports = {
   },
 
   // MUSIC
-  getPlaylist() {
+  async getPlaylist() {
     const stmt = db.prepare('SELECT * FROM music ORDER BY order_index ASC');
     return getRows(stmt);
   },
 
-  uploadMusic(name, fileData, fileType) {
+  async uploadMusic(name, fileData, fileType) {
     const result = db.prepare('SELECT MAX(order_index) as max_order FROM music').get();
     const orderIndex = (result.max_order ?? -1) + 1;
     const id = generateId();
@@ -396,18 +417,18 @@ module.exports = {
     return id;
   },
 
-  deleteMusic(musicId) {
+  async deleteMusic(musicId) {
     db.run('DELETE FROM music WHERE id = ?', [musicId]);
     saveDatabase();
   },
 
-  clearAllMusic() {
+  async clearAllMusic() {
     db.run('DELETE FROM music');
     saveDatabase();
   },
 
   // SITE SETTINGS
-  getSiteSettings() {
+  async getSiteSettings() {
     const defaults = {
       title: 'Home',
       logo: 'https://via.placeholder.com/200',
@@ -430,7 +451,7 @@ module.exports = {
     return { ...defaults, ...settings };
   },
 
-  saveSiteSettings(settings) {
+  async saveSiteSettings(settings) {
     for (const [key, value] of Object.entries(settings)) {
       db.run(`
         INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
@@ -438,15 +459,16 @@ module.exports = {
       `, [key, JSON.stringify(value)]);
     }
     saveDatabase();
+    return true;
   },
 
   // META
-  getMeta(key) {
+  async getMeta(key) {
     const row = db.prepare('SELECT value FROM meta WHERE key = ?').get([key]);
     return row ? JSON.parse(row.value) : null;
   },
 
-  setMeta(key, value) {
+  async setMeta(key, value) {
     db.run(`
       INSERT INTO meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
@@ -455,7 +477,7 @@ module.exports = {
   },
 
   // Close database connection
-  close() {
+  async close() {
     if (db) {
       saveDatabase();
       db.close();
