@@ -1,27 +1,33 @@
 /* =========================
    CRITSTRIKE SERVER
-   Optimized for Railway deployment
+   Optimized for Render deployment
 
    Health Check: /health or /api/health
-   Static Files: All HTML, CSS, JS served from root
+   Static Files: All HTML, CSS, JS, and assets
 ========================= */
 
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 const path = require("path");
-const db = require("./database");
 
 const app = express();
 
 // Railway sets PORT environment variable automatically
 const PORT = process.env.PORT || 3000;
 
-// Request logging middleware
+// Request logging middleware (skip for static assets in production)
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  const isStatic = /\.(html|css|js|png|jpg|svg|ico|woff|woff2|ttf|eot)/.test(req.path);
+  if (process.env.NODE_ENV !== 'production' || !isStatic) {
+    console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  }
   next();
 });
+
+// GZIP compression - MUST be before other middleware
+app.use(compression());
 
 app.use(express.json({ limit: "50mb" }));
 app.use(cors({
@@ -39,18 +45,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// STATIC FILES - Serve all HTML, CSS, JS, and assets
+// STATIC FILES - Optimized with aggressive caching
 app.use(express.static(path.join(__dirname), {
-  maxAge: '1d', // Cache static assets for 1 day
+  maxAge: '30d', // Cache static assets for 30 days (was 1 day)
   etag: true,
-  lastModified: true
+  lastModified: true,
+  immutable: true, // Tell browser files won't change
+  fallthrough: true
 }));
 
 // Runtime Firebase env injection for browser (Render/Railway/etc.)
 // Served as JS so it can be included before firebase-config.js.
 app.get("/firebase-env.js", (req, res) => {
   res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Cache-Control", "no-cache"); // Don't cache config
 
   const cfg = {
     apiKey: process.env.FIREBASE_API_KEY || "",
@@ -70,7 +78,7 @@ app.get("/firebase-env.js", (req, res) => {
 // Runtime Supabase env injection for browser
 app.get("/supabase-env.js", (req, res) => {
   res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Cache-Control", "no-cache");
 
   const cfg = {
     url: process.env.SUPABASE_URL || "",
@@ -401,7 +409,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// START SERVER
+// START SERVER - Start immediately, database loads in background
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log("\n" + "=".repeat(50));
   console.log("  CRITSTRIKE SERVER RUNNING");
@@ -411,13 +419,35 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`  DATABASE: Local SQLite (critstrike.db)`);
   console.log(`  HEALTH: http://localhost:${PORT}/health`);
   console.log("=".repeat(50) + "\n");
-  console.log("  Database file will be created at: " + path.join(__dirname, "critstrike.db") + "\n");
+});
+
+// Load database asynchronously (non-blocking)
+let db = null;
+const dbReady = new Promise((resolve, reject) => {
+  try {
+    const dbModule = require("./database");
+    db = dbModule;
+    // Wait for database to be ready
+    const checkInterval = setInterval(() => {
+      if (db && typeof db.getGames === 'function') {
+        clearInterval(checkInterval);
+        console.log('[SERVER] Database ready\n');
+        resolve(db);
+      }
+    }, 100);
+  } catch (err) {
+    console.error('[SERVER] Database failed to load:', err.message);
+    reject(err);
+  }
 });
 
 // Graceful shutdown for Railway
 process.on("SIGTERM", () => {
   console.log("[INFO] SIGTERM received, shutting down gracefully...");
   server.close(() => {
+    if (db && typeof db.close === 'function') {
+      db.close();
+    }
     console.log("[INFO] Server closed");
     process.exit(0);
   });
@@ -426,6 +456,9 @@ process.on("SIGTERM", () => {
 process.on("SIGINT", () => {
   console.log("[INFO] SIGINT received, shutting down gracefully...");
   server.close(() => {
+    if (db && typeof db.close === 'function') {
+      db.close();
+    }
     console.log("[INFO] Server closed");
     process.exit(0);
   });
