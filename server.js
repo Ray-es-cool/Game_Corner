@@ -408,14 +408,10 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log("=".repeat(50));
   console.log(`  PORT: ${PORT}`);
   console.log(`  ENV: ${process.env.NODE_ENV || "production"}`);
-  console.log(`  DATABASE: Turso Cloud SQLite`);
+  console.log(`  DATABASE: Local SQLite (critstrike.db)`);
   console.log(`  HEALTH: http://localhost:${PORT}/health`);
   console.log("=".repeat(50) + "\n");
-  if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-    console.log("  WARNING: Turso not configured!");
-    console.log("  Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables");
-    console.log("  See RENDER_DEPLOYMENT.md for setup instructions\n");
-  }
+  console.log("  Database file will be created at: " + path.join(__dirname, "critstrike.db") + "\n");
 });
 
 // Graceful shutdown for Railway
