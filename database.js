@@ -11,17 +11,22 @@ const fs = require('fs');
 const path = require('path');
 
 // Local SQLite database file
-// On Render, use persistent disk at /render_disk/critstrike.db
+// On Render, use /tmp if /render_disk isn't available yet
 const DB_PATH = process.env.SQLITE_DB_PATH ||
-                (process.env.RENDER ? '/render_disk/critstrike.db' : path.join(__dirname, 'critstrike.db'));
+                path.join(__dirname, 'critstrike.db');
 
 let db = null;
 let dbReady = false;
 
-// Ensure database directory exists
+// Ensure database directory exists (skip if no permission)
 const dbDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+try {
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[DATABASE] Cannot create', dbDir, '- using /tmp instead');
+  DB_PATH = '/tmp/critstrike.db';
 }
 
 // Initialize database
