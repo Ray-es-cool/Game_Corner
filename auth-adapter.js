@@ -1,10 +1,10 @@
 /* =========================
    AUTH ADAPTER
-   Bridges FireDB (Firebase) and SupaDB (Supabase)
+   Bridges FireDB (SQLite/Firebase) and SupaDB (Supabase)
    Allows using either backend seamlessly
 ========================= */
 
-// Use Supabase if available, otherwise fall back to Firebase
+// Use Supabase if available, otherwise fall back to SQLite/Firebase
 window.AuthDB = (function() {
     // Check if Supabase is configured
     const useSupabase = window.SupaDB && !window.SupaDB.createUser.toString().includes('Supabase not configured');
@@ -14,11 +14,11 @@ window.AuthDB = (function() {
         return window.SupaDB;
     }
 
-    // Check if Firebase is configured
-    const useFirebase = window.FireDB && !window.FireDB.createUser.toString().includes('Firebase not configured');
+    // Check if SQLite/Firebase is configured (has real API implementation)
+    const useFireDB = window.FireDB && window.FireDB.createUser && window.FireDB.createUser.toString().includes('fetch');
 
-    if (useFirebase) {
-        console.log("Using Firebase backend");
+    if (useFireDB) {
+        console.log("Using SQLite/Firebase backend");
         return window.FireDB;
     }
 
