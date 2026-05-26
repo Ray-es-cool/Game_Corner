@@ -4,6 +4,7 @@
 ========================= */
 
 const API_URL = window.location.origin;
+console.log('[SQLiteDB] API URL:', API_URL);
 
 window.SQLiteDB = {
   // USERS
@@ -26,6 +27,11 @@ window.SQLiteDB = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('Login API error:', res.status, text);
+      throw new Error('Server error: ' + res.status);
+    }
     const result = await res.json();
     if (result.success) {
       return {
