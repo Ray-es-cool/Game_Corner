@@ -1,13 +1,13 @@
 services:
   - type: web
-    name: critstrike
+    name: critstrike-game-server
     env: node
-    buildCommand: npm install && ls -la
-    startCommand: node ./server.js
+    buildCommand: npm install && rm -rf node_modules/.cache && ls -la
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
-      - key: DEPLOY_TIMESTAMP
-        value: "2026-05-26-fix-render-deploy"
+      - key: FORCE_REBUILD
+        value: "2026-05-26-complete-rebuild"
