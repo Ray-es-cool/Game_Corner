@@ -344,22 +344,37 @@ async function save(){
         return;
     }
 
-    let title = document.getElementById("titleInput").value;
-    let slogan = document.getElementById("sloganInput").value;
-    let updates = document.getElementById("updatesInput").value;
-    let logoUrl = document.getElementById("logoInput").value;
+    let title = document.getElementById("titleInput").value.trim();
+    let slogan = document.getElementById("sloganInput").value.trim();
+    let updates = document.getElementById("updatesInput").value.trim();
+    let logoUrl = document.getElementById("logoInput").value.trim();
+
+    // Use current values as fallbacks if fields are empty
+    if(!title) title = document.getElementById("siteName").innerText;
+    if(!slogan) slogan = document.getElementById("sloganText").innerText;
+    if(!updates) updates = document.getElementById("updatesText").innerHTML;
+    if(!logoUrl) logoUrl = document.getElementById("logoImg").src;
 
     try {
+        console.log("Saving site settings:", { title, slogan, updates, logoUrl });
+
         await FireDB.saveSiteSettings({
-            title: title || document.getElementById("siteName").innerText,
-            logo: logoUrl || document.getElementById("logoImg").src,
-            updates: updates || document.getElementById("updatesText").innerHTML,
-            slogan: slogan || document.getElementById("sloganText").innerText
+            title: title,
+            logo: logoUrl,
+            updates: updates,
+            slogan: slogan
         });
 
-        alert("Saved");
-        loadSite();
+        alert("Saved successfully!");
+        await loadSite();
+
+        // Clear the inputs after successful save
+        document.getElementById("titleInput").value = "";
+        document.getElementById("sloganInput").value = "";
+        document.getElementById("updatesInput").value = "";
+        document.getElementById("logoInput").value = "";
     } catch(err){
+        console.error("Save error:", err);
         alert("Save error: " + err.message);
     }
 }
