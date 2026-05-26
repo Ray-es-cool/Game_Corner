@@ -108,7 +108,7 @@ async function submit(){
             }
         } catch(err){
             console.error(err);
-            msg.innerText = "Cannot connect to server - make sure Firebase is configured";
+                msg.innerText = "Cannot connect to server - check server or network";
         }
     }
 
@@ -132,7 +132,7 @@ async function submit(){
             } else if(err.code === 'auth/weak-password'){
                 msg.innerText = "Password must be at least 6 characters";
             } else {
-                msg.innerText = "Cannot connect to server - make sure Firebase is configured";
+            msg.innerText = "Cannot connect to server - check server or network";
             }
         }
     }

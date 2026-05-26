@@ -258,7 +258,7 @@ async function claim(){
     localStorage.setItem(key, current);
     localStorage.setItem(currentUser + "_lastClaim", Date.now());
 
-    // Sync to Firebase
+    // Sync to server
     if(currentUid){
         await FireDB.updateTokens(currentUid, current);
     }

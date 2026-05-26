@@ -378,7 +378,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     loadTokens();
     syncVolume();
 
-    // Load owned themes from Firebase (or localStorage fallback)
+    // Load owned themes from server (or localStorage fallback)
     if(currentUser && currentUid){
         let ownedThemes = [];
         try {

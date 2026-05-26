@@ -302,7 +302,7 @@ document.getElementById("msg").innerText = "Username already taken";
 }else if(err.code === 'auth/weak-password'){
 document.getElementById("msg").innerText = "Password must be at least 6 characters";
 }else{
-document.getElementById("msg").innerText = "Cannot connect - check Firebase config";
+document.getElementById("msg").innerText = "Cannot connect to server - check server or network";
 }
 }
 }

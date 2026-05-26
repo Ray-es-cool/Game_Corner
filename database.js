@@ -12,7 +12,7 @@ const path = require('path');
 
 // Local SQLite database file
 // On Render, use /tmp if /render_disk isn't available yet
-const DB_PATH = process.env.SQLITE_DB_PATH ||
+let DB_PATH = process.env.SQLITE_DB_PATH ||
                 path.join(__dirname, 'critstrike.db');
 
 let db = null;
