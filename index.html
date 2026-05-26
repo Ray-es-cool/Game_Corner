@@ -281,14 +281,23 @@ async function loadTokens(){
 
 async function resolveAdmin(){
     isAdminUser = false;
-    if(!currentUser || !currentUid || !window.FireDB) return false;
+    if(!currentUser) return false;
+
+    // Fallback: check username directly if server is unavailable
+    if(!currentUid || !window.FireDB){
+        isAdminUser = (currentUser === "Game_Master");
+        return isAdminUser;
+    }
+
     try{
         const data = await FireDB.getUserData(currentUid);
         isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
         return isAdminUser;
-    }catch(_){
-        isAdminUser = false;
-        return false;
+    }catch(err){
+        console.warn("Could not fetch user data, using fallback admin check");
+        // Fallback to username check if server fails
+        isAdminUser = (currentUser === "Game_Master");
+        return isAdminUser;
     }
 }
 
