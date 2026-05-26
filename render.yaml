@@ -9,3 +9,5 @@ services:
         value: production
       - key: PORT
         value: 3000
+      - key: DEPLOY_TIMESTAMP
+        value: "2026-05-25-force-redeploy"
