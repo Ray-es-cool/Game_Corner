@@ -1,6 +1,7 @@
 /* =========================
    CRITSTRIKE SERVER
    Optimized for Render deployment
+   Version: 2026-05-26
 
    Health Check: /health or /api/health
    Static Files: All HTML, CSS, JS, and assets
