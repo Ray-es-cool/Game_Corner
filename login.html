@@ -143,6 +143,23 @@
       document.getElementById("msg").innerText = "";
     }
 
+    async function submitWithRetry(operation, maxRetries = 3){
+      for(let i = 0; i < maxRetries; i++){
+        try {
+          return await operation();
+        } catch(err){
+          let errorMsg = err.message || "Failed";
+          // Retry only on connection errors, not on invalid credentials
+          if((errorMsg.includes("Server") || errorMsg.includes("connect") ||
+              errorMsg.includes("fetch") || errorMsg.includes("Failed")) && i < maxRetries - 1){
+            await new Promise(r => setTimeout(r, 1500)); // Wait 1.5s before retry
+            continue;
+          }
+          throw err;
+        }
+      }
+    }
+
     async function submit(){
       let user = document.getElementById("username").value.trim();
       let pass = document.getElementById("password").value;
@@ -154,10 +171,13 @@
         return;
       }
 
+      msg.innerText = "Connecting...";
+      msg.className = "";
+
       if(isLogin){
         // LOGIN
         try {
-          const result = await FireDB.login(user, pass);
+          const result = await submitWithRetry(() => FireDB.login(user, pass));
 
           if(result){
             localStorage.setItem("currentUser", user);
@@ -175,7 +195,7 @@
           } else if(errorMsg.includes("User not found")){
             msg.innerText = "User not found";
           } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch") || errorMsg.includes("Failed")){
-            msg.innerText = "Cannot connect to server";
+            msg.innerText = "Cannot connect to server - server may be starting up";
           } else {
             msg.innerText = errorMsg;
           }
@@ -184,7 +204,7 @@
       } else {
         // REGISTER
         try {
-          const result = await FireDB.createUser(user, pass, "https://via.placeholder.com/40");
+          const result = await submitWithRetry(() => FireDB.createUser(user, pass, "https://via.placeholder.com/40"));
 
           if(result){
             msg.innerText = "Account created! You can now login.";
@@ -202,7 +222,7 @@
           } else if(errorMsg.includes("password") || errorMsg.includes("6")){
             msg.innerText = "Password must be at least 6 characters";
           } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch") || errorMsg.includes("Failed")){
-            msg.innerText = "Cannot connect to server";
+            msg.innerText = "Cannot connect to server - server may be starting up";
           } else {
             msg.innerText = errorMsg;
           }
