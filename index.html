@@ -200,19 +200,6 @@ font-size:30px;
 <!-- Games rendered here -->
 </div>
 
-<div class="admin" id="adminPanel">
-<h3>Admin Panel (Game_Master Only)</h3>
-<label>Site Title</label>
-<input id="titleInput" placeholder="Title">
-<label>Slogan</label>
-<input id="sloganInput" placeholder="Slogan">
-<label>Updates (HTML allowed)</label>
-<textarea id="updatesInput"></textarea>
-<label>Logo URL</label>
-<input id="logoInput" type="text" placeholder="https://...">
-<button onclick="save()">Save Site Settings</button>
-</div>
-
 </div>
 
 </div>
@@ -279,53 +266,16 @@ async function loadTokens(){
     el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
 }
 
-async function resolveAdmin(){
-    isAdminUser = false;
-    if(!currentUser) return false;
-
-    // Fallback: check username directly if server is unavailable
-    if(!currentUid || !window.FireDB){
-        isAdminUser = (currentUser === "Game_Master");
-        return isAdminUser;
-    }
-
-    try{
-        const data = await FireDB.getUserData(currentUid);
-        isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
-        return isAdminUser;
-    }catch(err){
-        console.warn("Could not fetch user data, using fallback admin check");
-        // Fallback to username check if server fails
-        isAdminUser = (currentUser === "Game_Master");
-        return isAdminUser;
-    }
-}
-
 /* =========================
-   SITE SETTINGS
+   SITE SETTINGS (Hardcoded)
 ========================= */
-async function loadSite(){
-    try{
-        const result = await FireDB.getSiteSettings();
-        const data = result.settings || result;
-
-        console.log("Loaded site settings:", data);
-
-        apply({
-            title: data.title || "Home",
-            logo: data.logo || "https://via.placeholder.com/200",
-            updates: data.updates || "- Ready",
-            slogan: data.slogan || "Play. Learn. Repeat"
-        });
-    } catch(err){
-        console.error("Failed to load site settings:", err);
-        apply({
-            title: "Home",
-            logo: "https://via.placeholder.com/200",
-            updates: "- System loading...",
-            slogan: "Play. Learn. Repeat"
-        });
-    }
+function loadSite(){
+    apply({
+        title: "Home",
+        logo: "https://via.placeholder.com/200",
+        updates: "- Welcome to CritStrike!",
+        slogan: "Play. Learn. Repeat"
+    });
 }
 
 function apply(d){
@@ -345,50 +295,6 @@ function apply(d){
 
     el = document.getElementById("sloganText");
     if(el) el.innerText = d.slogan;
-}
-
-/* =========================
-   ADMIN SAVE
-========================= */
-async function save(){
-    if(!isAdminUser){
-        alert("Admin only");
-        return;
-    }
-
-    let title = document.getElementById("titleInput").value.trim();
-    let slogan = document.getElementById("sloganInput").value.trim();
-    let updates = document.getElementById("updatesInput").value.trim();
-    let logoUrl = document.getElementById("logoInput").value.trim();
-
-    // Use current values as fallbacks if fields are empty
-    if(!title) title = document.getElementById("siteName").innerText;
-    if(!slogan) slogan = document.getElementById("sloganText").innerText;
-    if(!updates) updates = document.getElementById("updatesText").innerHTML;
-    if(!logoUrl) logoUrl = document.getElementById("logoImg").src;
-
-    try {
-        console.log("Saving site settings:", { title, slogan, updates, logoUrl });
-
-        await FireDB.saveSiteSettings({
-            title: title,
-            logo: logoUrl,
-            updates: updates,
-            slogan: slogan
-        });
-
-        alert("Saved successfully!");
-        await loadSite();
-
-        // Clear the inputs after successful save
-        document.getElementById("titleInput").value = "";
-        document.getElementById("sloganInput").value = "";
-        document.getElementById("updatesInput").value = "";
-        document.getElementById("logoInput").value = "";
-    } catch(err){
-        console.error("Save error:", err);
-        alert("Save error: " + err.message);
-    }
 }
 
 /* =========================
@@ -441,17 +347,11 @@ function openGameById(gameId){
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", async ()=>{
+document.addEventListener("DOMContentLoaded", ()=>{
     loadUserUI();
-    await loadTokens(); // Load from server
-
-    await resolveAdmin();
-    if(isAdminUser){
-        document.getElementById("adminPanel").style.display = "block";
-    }
-
-    await loadSite();
-    await loadTopGames();
+    loadTokens();
+    loadSite();
+    loadTopGames();
 
     // Sync on storage changes
     window.addEventListener("storage", (e) => {
