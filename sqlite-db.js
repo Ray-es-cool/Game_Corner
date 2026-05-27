@@ -27,11 +27,6 @@ window.SQLiteDB = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('Login API error:', res.status, text);
-      throw new Error('Server error: ' + res.status);
-    }
     const result = await res.json();
     if (result.success) {
       return {
@@ -41,7 +36,8 @@ window.SQLiteDB = {
         pfp: result.pfp
       };
     }
-    throw new Error(result.error || 'Login failed');
+    // Throw the actual error message from server
+    throw new Error(result.error || 'Invalid credentials');
   },
 
   async logout() {

@@ -108,7 +108,16 @@ async function submit(){
             }
         } catch(err){
             console.error(err);
+            let errorMsg = err.message || "Login failed";
+            if(errorMsg.includes("Invalid") || errorMsg.includes("credentials")){
+                msg.innerText = "Invalid username or password";
+            } else if(errorMsg.includes("User not found")){
+                msg.innerText = "User not found";
+            } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch")){
                 msg.innerText = "Cannot connect to server - check server or network";
+            } else {
+                msg.innerText = errorMsg;
+            }
         }
     }
 
@@ -127,12 +136,15 @@ async function submit(){
             }
         } catch(err){
             console.error(err);
-            if(err.code === 'auth/email-already-in-use'){
+            let errorMsg = err.message || "Registration failed";
+            if(errorMsg.includes("already") || errorMsg.includes("exists") || errorMsg.includes("Username")){
                 msg.innerText = "Username already taken";
-            } else if(err.code === 'auth/weak-password'){
+            } else if(errorMsg.includes("password") || errorMsg.includes("6")){
                 msg.innerText = "Password must be at least 6 characters";
+            } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch")){
+                msg.innerText = "Cannot connect to server - check server or network";
             } else {
-            msg.innerText = "Cannot connect to server - check server or network";
+                msg.innerText = errorMsg;
             }
         }
     }
