@@ -184,6 +184,15 @@ window.SQLiteDB = {
     }
   },
 
+  async getGameById(gameId) {
+    const res = await fetch(`${API_URL}/api/games/${gameId}`);
+    const result = await res.json();
+    if (result.success) {
+      return result.game || result.data;
+    }
+    return null;
+  },
+
   async deleteGameById(gameId) {
     const res = await fetch(`${API_URL}/api/games/${gameId}`, {
       method: 'DELETE'

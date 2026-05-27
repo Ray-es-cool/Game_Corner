@@ -254,6 +254,18 @@ module.exports = {
     }));
   },
 
+  async getGameById(gameId) {
+    const stmt = db.prepare('SELECT * FROM games WHERE id = ?');
+    const game = getRow(stmt, [gameId]);
+    if (game) {
+      return {
+        ...game,
+        credit_eligible: game.credit_eligible === null ? null : game.credit_eligible === 1
+      };
+    }
+    return null;
+  },
+
   async saveGame(slotIndex, gameData) {
     const creditEligible = typeof gameData.creditEligible === 'boolean'
       ? (gameData.creditEligible ? 1 : 0)

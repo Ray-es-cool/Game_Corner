@@ -288,6 +288,20 @@ async function startServer() {
     }
   });
 
+  app.get("/api/games/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const game = await db.getGameById(id);
+      if (!game) {
+        return res.status(404).json({ success: false, error: "Game not found" });
+      }
+      res.json({ success: true, game });
+    } catch (err) {
+      console.error("Get game error:", err);
+      res.status(500).json({ success: false, error: "Server error" });
+    }
+  });
+
   app.delete("/api/games/:id", async (req, res) => {
     try {
       const { id } = req.params;
