@@ -297,12 +297,15 @@ document.getElementById("msg").innerText = "Signup failed";
 
 }catch(err){
 console.error(err);
-if(err.code === 'auth/email-already-in-use'){
+let errorMsg = err.message || "Signup failed";
+if(errorMsg.includes("Username") || errorMsg.includes("already")){
 document.getElementById("msg").innerText = "Username already taken";
-}else if(err.code === 'auth/weak-password'){
+}else if(errorMsg.includes("password") || errorMsg.includes("6")){
 document.getElementById("msg").innerText = "Password must be at least 6 characters";
-}else{
+}else if(errorMsg.includes("Server") || errorMsg.includes("connect")){
 document.getElementById("msg").innerText = "Cannot connect to server - check server or network";
+}else{
+document.getElementById("msg").innerText = errorMsg;
 }
 }
 }
