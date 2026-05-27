@@ -602,6 +602,9 @@ async function createGameFromModal(){
         });
         if(window.CritAnimations?.showToast) CritAnimations.showToast("Game created");
         closeAddGame();
+        // Reload games from server and sync to all users
+        await SharedState.loadGames();
+        SharedState.syncGames();
         await loadGames();
     }catch(err){
         alert("Create error: " + err.message);
@@ -643,6 +646,9 @@ async function togglePublishById(gameId, currentlyPublished){
     if(!isAdminUser) return;
     try{
         await FireDB.updateGameById(gameId, { published: !currentlyPublished });
+        // Reload games from server and sync to all users
+        await SharedState.loadGames();
+        SharedState.syncGames();
         await loadGames();
     }catch(err){
         alert("Publish error: " + err.message);
@@ -654,6 +660,9 @@ async function deleteGameById(gameId){
     if(!confirm("Delete this game?")) return;
     try{
         await FireDB.deleteGameById(gameId);
+        // Reload games from server and sync to all users
+        await SharedState.loadGames();
+        SharedState.syncGames();
         await loadGames();
     }catch(err){
         alert("Delete error: " + err.message);
