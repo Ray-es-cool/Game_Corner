@@ -7,6 +7,9 @@
 <!-- SQLite Database Client -->
 <script src="sqlite-db.js"></script>
 
+<!-- Shared State - Hive Mind -->
+<script src="shared-state.js"></script>
+
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
@@ -387,11 +390,8 @@ body{
 <script>
 
 /* =========================
-   STATE
+   STATE (uses SharedState)
 ========================= */
-let currentUser = localStorage.getItem("currentUser");
-let currentUid = localStorage.getItem("currentUid");
-let games = [];
 let activeTab = "all";
 let isAdminUser = false;
 let currentPlaying = { gameId: null, creditPingTimer: null, gotCreditResponse: false };
@@ -403,9 +403,9 @@ function loadUserUI(){
     let box = document.getElementById("userBox");
     if(!box) return;
 
-    if(currentUser){
+    if(SharedState.currentUser){
         box.innerHTML = `
-            <span>${currentUser}</span>
+            <span>${SharedState.currentUser}</span>
             <button onclick="logoutUser()"
             style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
             Logout
@@ -417,64 +417,34 @@ function loadUserUI(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
-async function loadTokens(){
+function loadTokens(){
     let el = document.getElementById("tokens");
-    if(!el || !currentUser) return;
-
-    // Load from server first
-    if(currentUid && window.FireDB){
-        try {
-            const result = await FireDB.getUserData(currentUid);
-            if(result && result.tokens !== undefined){
-                localStorage.setItem(currentUser+"_tokens", result.tokens);
-                el.innerText = "🪙 " + result.tokens;
-                return;
-            }
-        } catch(e) {
-            console.warn("Token load failed:", e.message);
-        }
-    }
-    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 async function resolveAdmin(){
     isAdminUser = false;
-    if(!currentUser || !currentUid || !window.FireDB) return false;
+    if(!SharedState.currentUser) return false;
     try{
-        const data = await FireDB.getUserData(currentUid);
-        isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
+        const data = await FireDB.getUserData(SharedState.currentUid);
+        isAdminUser = (data?.username === "Game_Master" && SharedState.currentUser === "Game_Master");
         return isAdminUser;
     }catch(e){
-        isAdminUser = false;
-        return false;
+        isAdminUser = (SharedState.currentUser === "Game_Master");
+        return isAdminUser;
     }
 }
 
 /* =========================
-   LOAD GAMES
+   LOAD GAMES (uses SharedState)
 ========================= */
-async function loadGames(){
-    try {
-        // Weekly reset (lazy)
-        if(FireDB.ensureWeeklyReset) {
-            await FireDB.ensureWeeklyReset();
-        }
-
-        // Admin can see everything, users see published only
-        games = await FireDB.getGames(!isAdminUser);
-        renderGamesByTab();
-    } catch(err){
-        console.error("Failed to load games:", err);
-        document.getElementById("gameGrid").innerHTML = "<p>Failed to load games</p>";
-    }
+function loadGames(){
+    renderGamesByTab();
 }
 
 function normalizeGame(g){
@@ -498,7 +468,8 @@ function renderGamesByTab(){
 
     grid.innerHTML = "";
 
-    const normalized = (games || []).map(normalizeGame);
+    const games = SharedState.games || [];
+    const normalized = games.map(normalizeGame);
 
     const publishedGames = isAdminUser ? normalized : normalized.filter(g => g.published);
     let list = publishedGames;
@@ -522,7 +493,7 @@ function renderGamesByTab(){
     }
 
     for(const game of list){
-        const canPlay = !!currentUser;
+        const canPlay = !!SharedState.currentUser;
         const creditLabel = game.creditEligible === true ? "🪙 Credit" : (game.creditEligible === false ? "🚫 Non‑credit" : "❓ Auto");
         const playsLabel = `▶ ${game.playsWeek} this week • ${game.playsTotal} total`;
 
@@ -829,17 +800,18 @@ function closeGame(){
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", async ()=>{
+document.addEventListener("DOMContentLoaded", ()=>{
+    // SharedState already initialized by shared-state.js
     loadUserUI();
-    await loadTokens();  // Wait for server to load fresh tokens
-    await resolveAdmin();
+    loadTokens();
+    resolveAdmin();
 
     const addBtn = document.getElementById("addGameBtn");
     if(isAdminUser && addBtn){
         addBtn.style.display = "block";
         addBtn.onclick = openAddGame;
     }
-    await loadGames();
+    loadGames();
     renderGamesByTab();
 
     const params = new URLSearchParams(window.location.search);
@@ -856,17 +828,12 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         }
     }
 
-    // Sync on storage changes
+    // Sync on storage changes - SharedState handles data, we refresh UI
     window.addEventListener("storage", (e)=>{
-        if(e.key === "gamesSync"){
-            loadGames();
-        }
-        if(e.key === "userSync"){
-            location.reload();
-        }
-        if(e.key === "theme"){
-            applyTheme();
-        }
+        if(e.key === "gamesSync"){ loadGames(); renderGamesByTab(); }
+        if(e.key === "userSync"){ loadUserUI(); loadTokens(); }
+        if(e.key === "tokenSync"){ loadTokens(); }
+        if(e.key === "theme"){ applyTheme(); }
     });
 });
 

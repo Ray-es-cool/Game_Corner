@@ -7,6 +7,9 @@
 <!-- SQLite Database Client -->
 <script src="sqlite-db.js"></script>
 
+<!-- Shared State - Hive Mind -->
+<script src="shared-state.js"></script>
+
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
@@ -280,17 +283,14 @@ margin-top:20px;
 <script>
 
 /* =========================
-   USER SYSTEM
+   USER SYSTEM (uses SharedState)
 ========================= */
-let currentUser = localStorage.getItem("currentUser");
-
-/* USER UI */
 function loadUser(){
     let box = document.getElementById("userBox");
-    if(!box || !currentUser) return;
+    if(!box || !SharedState.currentUser) return;
 
     box.innerHTML = `
-        <span>${currentUser}</span>
+        <span>${SharedState.currentUser}</span>
         <button onclick="logoutUser()"
         style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
         Logout
@@ -299,19 +299,15 @@ function loadUser(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
 /* TOKENS */
 function loadTokens(){
-    if(!currentUser) return;
-    let t = localStorage.getItem(currentUser+"_tokens") || 0;
-    document.getElementById("tokens").innerText = "🪙 " + t;
+    let el = document.getElementById("tokens");
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 /* NAVIGATION */
@@ -374,17 +370,18 @@ window.addEventListener("storage",(e)=>{
 
 /* INIT */
 document.addEventListener("DOMContentLoaded", async ()=>{
+    // SharedState already initialized by shared-state.js
     loadUser();
     loadTokens();
     syncVolume();
 
     // Load owned themes from server (or localStorage fallback)
-    if(currentUser && currentUid){
+    if(SharedState.currentUser && SharedState.currentUid){
         let ownedThemes = [];
         try {
-            ownedThemes = await FireDB.getUserThemes(currentUid) || [];
+            ownedThemes = await FireDB.getUserThemes(SharedState.currentUid) || [];
         } catch(e) {
-            ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+            ownedThemes = JSON.parse(localStorage.getItem(SharedState.currentUser+"_themes") || "[]");
         }
 
         if(ownedThemes.includes("red")){

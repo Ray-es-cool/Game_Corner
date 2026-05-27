@@ -7,6 +7,9 @@
 <!-- SQLite Database Client -->
 <script src="sqlite-db.js"></script>
 
+<!-- Shared State - Hive Mind -->
+<script src="shared-state.js"></script>
+
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
@@ -232,35 +235,17 @@ function loadUserUI(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
 /* =========================
-   TOKENS
+   TOKENS (uses SharedState)
 ========================= */
-async function loadTokens(){
+function loadTokens(){
     let el = document.getElementById("tokens");
-    if(!el || !currentUser) return;
-
-    // Load from server first
-    if(currentUid && window.FireDB){
-        try {
-            const result = await FireDB.getUserData(currentUid);
-            if(result && result.tokens !== undefined){
-                localStorage.setItem(currentUser+"_tokens", result.tokens);
-                el.innerText = "🪙 " + result.tokens;
-                return;
-            }
-        } catch(e) {
-            console.warn("Token load failed:", e.message);
-        }
-    }
-    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 window.addEventListener("storage",(e)=>{
@@ -273,16 +258,16 @@ window.addEventListener("storage",(e)=>{
 });
 
 /* =========================
-   SHOP FUNCTIONS (Server + localStorage)
+   SHOP FUNCTIONS (uses SharedState)
 ========================= */
 async function buyRedTheme(){
-    if(!currentUser || !currentUid){
+    if(!SharedState.currentUser || !SharedState.currentUid){
         alert("Login required to purchase items");
         window.location.href = "login.html";
         return;
     }
 
-    const currentTokens = parseInt(localStorage.getItem(currentUser+"_tokens") || 0);
+    const currentTokens = SharedState.tokens;
     const price = 100;
 
     if(currentTokens < price){
@@ -308,14 +293,14 @@ async function buyRedTheme(){
     localStorage.setItem(currentUser+"_tokens", newTokens);
     localStorage.setItem("tokenSync", Date.now());
 
-    // Save to server
+    // Deduct tokens via SharedState (syncs everywhere)
+    await SharedState.updateTokens(newTokens);
+
+    // Save theme to server
     try {
-        await FireDB.updateTokens(currentUid, newTokens);
-        await FireDB.addUserTheme(currentUid, "red");
+        await FireDB.addUserTheme(SharedState.currentUid, "red");
     } catch(e) {
-        // Fallback to localStorage if server fails
-        ownedThemes.push("red");
-        localStorage.setItem(currentUser+"_themes", JSON.stringify(ownedThemes));
+        console.warn("Failed to save theme:", e.message);
     }
 
     alert("🎉 Red theme purchased! Check it out in Settings > Themes");
@@ -323,13 +308,13 @@ async function buyRedTheme(){
 }
 
 async function buyLimeTheme(){
-    if(!currentUser || !currentUid){
+    if(!SharedState.currentUser || !SharedState.currentUid){
         alert("Login required to purchase items");
         window.location.href = "login.html";
         return;
     }
 
-    const currentTokens = parseInt(localStorage.getItem(currentUser+"_tokens") || 0);
+    const currentTokens = SharedState.tokens;
     const price = 500;
 
     if(currentTokens < price){
@@ -337,12 +322,12 @@ async function buyLimeTheme(){
         return;
     }
 
-    // Check if already owned (check server first, then localStorage)
+    // Check if already owned
     let ownedThemes = [];
     try {
-        ownedThemes = await FireDB.getUserThemes(currentUid) || [];
+        ownedThemes = await FireDB.getUserThemes(SharedState.currentUid) || [];
     } catch(e) {
-        ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+        ownedThemes = JSON.parse(localStorage.getItem(SharedState.currentUser+"_themes") || "[]");
     }
 
     if(ownedThemes.includes("lime")){
@@ -350,19 +335,15 @@ async function buyLimeTheme(){
         return;
     }
 
-    // Deduct tokens (server + localStorage)
+    // Deduct tokens via SharedState (syncs everywhere)
     const newTokens = currentTokens - price;
-    localStorage.setItem(currentUser+"_tokens", newTokens);
-    localStorage.setItem("tokenSync", Date.now());
+    await SharedState.updateTokens(newTokens);
 
-    // Save to server
+    // Save theme to server
     try {
-        await FireDB.updateTokens(currentUid, newTokens);
-        await FireDB.addUserTheme(currentUid, "lime");
+        await FireDB.addUserTheme(SharedState.currentUid, "lime");
     } catch(e) {
-        // Fallback to localStorage if server fails
-        ownedThemes.push("lime");
-        localStorage.setItem(currentUser+"_themes", JSON.stringify(ownedThemes));
+        console.warn("Failed to save theme:", e.message);
     }
 
     alert("🎉 Lime theme purchased! Check it out in Settings > Themes");
@@ -372,13 +353,14 @@ async function buyLimeTheme(){
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", async ()=>{
+document.addEventListener("DOMContentLoaded", ()=>{
+    // SharedState already initialized
     loadUserUI();
-    await loadTokens();
+    loadTokens();
 
     // Check if already owned and disable buttons
-    if(currentUser){
-        const ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    if(SharedState.currentUser){
+        const ownedThemes = JSON.parse(localStorage.getItem(SharedState.currentUser+"_themes") || "[]");
 
         if(ownedThemes.includes("red")){
             const btn = document.getElementById("buyRedBtn");

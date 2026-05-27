@@ -7,6 +7,9 @@
 <!-- SQLite Database Client -->
 <script src="sqlite-db.js"></script>
 
+<!-- Shared State - Hive Mind -->
+<script src="shared-state.js"></script>
+
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
@@ -259,17 +262,15 @@ body{
 <script>
 
 /* =========================
-   USER STATE
+   USER STATE (uses SharedState)
 ========================= */
-let currentUser = localStorage.getItem("currentUser");
-
 function loadUserUI(){
     let box = document.getElementById("userBox");
     if(!box) return;
 
-    if(currentUser){
+    if(SharedState.currentUser){
         box.innerHTML = `
-            <span>${currentUser}</span>
+            <span>${SharedState.currentUser}</span>
             <button onclick="logoutUser()"
             style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
             Logout
@@ -281,37 +282,33 @@ function loadUserUI(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
 function loadTokens(){
     let el = document.getElementById("tokens");
-    if(!el || !currentUser) return;
-    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 /* =========================
    PERSONAL PLAYLIST (localStorage)
 ========================= */
 function getPersonalPlaylist(){
-    if(!currentUser) return [];
-    const data = localStorage.getItem(currentUser + "_playlist");
+    if(!SharedState.currentUser) return [];
+    const data = localStorage.getItem(SharedState.currentUser + "_playlist");
     return data ? JSON.parse(data) : [];
 }
 
 function savePersonalPlaylist(playlist){
-    if(!currentUser) return;
-    localStorage.setItem(currentUser + "_playlist", JSON.stringify(playlist));
+    if(!SharedState.currentUser) return;
+    localStorage.setItem(SharedState.currentUser + "_playlist", JSON.stringify(playlist));
     localStorage.setItem("musicSync", Date.now());
 }
 
 function uploadSong(){
-    if(!currentUser){
+    if(!SharedState.currentUser){
         alert("Please login to upload music");
         return;
     }
@@ -410,6 +407,7 @@ function renderPlaylist(){
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", ()=>{
+    // SharedState already initialized by shared-state.js
     loadUserUI();
     loadTokens();
     renderPlaylist();
@@ -420,6 +418,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
         }
         if(e.key === "userSync"){
             location.reload();
+        }
+        if(e.key === "tokenSync"){
+            loadTokens();
         }
         if(e.key === "theme"){
             applyTheme();

@@ -7,6 +7,9 @@
 <!-- SQLite Database Client -->
 <script src="sqlite-db.js"></script>
 
+<!-- Shared State - Hive Mind -->
+<script src="shared-state.js"></script>
+
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
@@ -174,14 +177,12 @@ font-size:30px;
 <script>
 
 /* =========================
-   USER STATE
+   USER STATE (uses SharedState)
 ========================= */
-let currentUser = localStorage.getItem("currentUser");
-let currentUid = localStorage.getItem("currentUid");
-
 function loadUserUI(){
     let box = document.getElementById("userBox");
     let loginLink = document.getElementById("loginLink");
+    let currentUser = SharedState.currentUser;
 
     if(!box) return;
 
@@ -201,33 +202,14 @@ function loadUserUI(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
-async function loadTokens(){
+function loadTokens(){
     let el = document.getElementById("tokens");
-    if(!el || !currentUser) return;
-
-    // Always load from server first
-    if(currentUid && window.FireDB){
-        try {
-            const result = await FireDB.getUserData(currentUid);
-            if(result && result.tokens !== undefined){
-                localStorage.setItem(currentUser+"_tokens", result.tokens);
-                el.innerText = "🪙 " + result.tokens;
-                return;
-            }
-        } catch(e) {
-            console.warn("Token load from server failed:", e.message);
-        }
-    }
-    // Fallback to localStorage
-    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 /* =========================
@@ -262,41 +244,37 @@ function apply(d){
 }
 
 /* =========================
-   GAMES
+   GAMES (uses SharedState)
 ========================= */
-async function loadTopGames(){
-    try {
-        const games = await FireDB.getGames(true); // published only
-        const top = games
-            .filter(g => g && g.name)
-            .sort((a,b) => ((b.plays_week ?? b.players) || 0) - ((a.plays_week ?? a.players) || 0))
-            .slice(0, 4);
+function loadTopGames(){
+    const games = SharedState.games || [];
+    const top = games
+        .filter(g => g && g.name)
+        .sort((a,b) => ((b.plays_week ?? b.players) || 0) - ((a.plays_week ?? a.players) || 0))
+        .slice(0, 4);
 
-        const wrap = document.getElementById("gamesContainer");
-        if(!wrap) return;
+    const wrap = document.getElementById("gamesContainer");
+    if(!wrap) return;
 
-        if(top.length === 0){
-            wrap.innerHTML = "<div>No games available yet</div>";
-            return;
-        }
-
-        wrap.innerHTML = top.map((g,i) => `
-            <div class="game">
-                <strong>#${i+1} ${g.name}</strong>
-                <p>▶ ${(g.plays_week ?? g.players) || 0} plays (this week)</p>
-                <button onclick="openGameById('${g.id}')"
-                style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent);color:white;cursor:pointer;margin-top:8px;">
-                ${currentUser ? "Play" : "Login Required"}
-                </button>
-            </div>
-        `).join("");
-    } catch(err){
-        console.error("Failed to load games:", err);
+    if(top.length === 0){
+        wrap.innerHTML = "<div>No games available yet</div>";
+        return;
     }
+
+    wrap.innerHTML = top.map((g,i) => `
+        <div class="game">
+            <strong>#${i+1} ${g.name}</strong>
+            <p>▶ ${(g.plays_week ?? g.players) || 0} plays (this week)</p>
+            <button onclick="openGameById('${g.id}')"
+            style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent);color:white;cursor:pointer;margin-top:8px;">
+            ${SharedState.currentUser ? "Play" : "Login Required"}
+            </button>
+        </div>
+    `).join("");
 }
 
 function canPlayGames(){
-    return !!currentUser;
+    return !!SharedState.currentUser;
 }
 
 function openGameById(gameId){
@@ -311,16 +289,18 @@ function openGameById(gameId){
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", async ()=>{
+document.addEventListener("DOMContentLoaded", ()=>{
+    // SharedState already initialized by shared-state.js
     loadUserUI();
-    await loadTokens();  // Wait for server to load fresh tokens
+    loadTokens();
     loadSite();
     loadTopGames();
 
-    // Sync on storage changes
+    // Sync on storage changes - SharedState handles most, we just refresh UI
     window.addEventListener("storage", (e) => {
-        if(e.key === "userSync") location.reload();
+        if(e.key === "userSync") { loadUserUI(); loadTokens(); }
         if(e.key === "tokenSync") loadTokens();
+        if(e.key === "gamesSync") loadTopGames();
         if(e.key === "theme") applyTheme();
     });
 });
