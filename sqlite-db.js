@@ -57,11 +57,25 @@ window.SQLiteDB = {
   },
 
   async updateTokens(uid, tokens) {
-    // Tokens updated via username endpoint
+    // First get username from uid
+    const user = await this.getUserByUid(uid);
+    if (!user) throw new Error('User not found');
+
+    const res = await fetch(`${API_URL}/api/users/${user.username}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error || 'Failed to update tokens');
   },
 
   async incrementTokens(uid, delta) {
-    // Would need a dedicated endpoint for this
+    const user = await this.getUserByUid(uid);
+    if (!user) throw new Error('User not found');
+
+    const newTokens = (user.tokens || 0) + delta;
+    await this.updateTokens(uid, newTokens);
   },
 
   async getUserThemes(uid) {
