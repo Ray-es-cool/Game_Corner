@@ -425,9 +425,23 @@ function logoutUser(){
     location.reload();
 }
 
-function loadTokens(){
+async function loadTokens(){
     let el = document.getElementById("tokens");
     if(!el || !currentUser) return;
+
+    // Load from server first
+    if(currentUid && window.FireDB){
+        try {
+            const result = await FireDB.getUserData(currentUid);
+            if(result && result.tokens !== undefined){
+                localStorage.setItem(currentUser+"_tokens", result.tokens);
+                el.innerText = "🪙 " + result.tokens;
+                return;
+            }
+        } catch(e) {
+            console.warn("Token load failed:", e.message);
+        }
+    }
     el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
 }
 
@@ -815,32 +829,32 @@ function closeGame(){
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", ()=>{
+document.addEventListener("DOMContentLoaded", async ()=>{
     loadUserUI();
-    loadTokens();
-    resolveAdmin().then(async () => {
-        const addBtn = document.getElementById("addGameBtn");
-        if(isAdminUser && addBtn){
-            addBtn.style.display = "block";
-            addBtn.onclick = openAddGame;
-        }
-        await loadGames();
-        renderGamesByTab();
+    await loadTokens();  // Wait for server to load fresh tokens
+    await resolveAdmin();
 
-        const params = new URLSearchParams(window.location.search);
-        const playId = params.get("playId");
-        if(playId){
-            playGameById(playId);
-            return;
+    const addBtn = document.getElementById("addGameBtn");
+    if(isAdminUser && addBtn){
+        addBtn.style.display = "block";
+        addBtn.onclick = openAddGame;
+    }
+    await loadGames();
+    renderGamesByTab();
+
+    const params = new URLSearchParams(window.location.search);
+    const playId = params.get("playId");
+    if(playId){
+        playGameById(playId);
+        return;
+    }
+    const playSlot = params.get("play");
+    if(playSlot !== null && playSlot !== ""){
+        const idx = parseInt(playSlot, 10);
+        if(!Number.isNaN(idx)) {
+            playGame(idx);
         }
-        const playSlot = params.get("play");
-        if(playSlot !== null && playSlot !== ""){
-            const idx = parseInt(playSlot, 10);
-            if(!Number.isNaN(idx)) {
-                playGame(idx);
-            }
-        }
-    });
+    }
 
     // Sync on storage changes
     window.addEventListener("storage", (e)=>{
