@@ -512,12 +512,7 @@ function renderGamesByTab(){
         if(isAdminUser){
             card.innerHTML += `
                 <div class="admin-panel">
-                    <div style="display:flex;gap:10px;">
-                        <button class="publish-btn" onclick="togglePublishById('${game.id}', ${game.published ? "true" : "false"})" style="flex:1;">
-                            ${game.published ? "Unpublish" : "Publish"}
-                        </button>
-                        <button class="delete-btn" onclick="deleteGameById('${game.id}')" style="flex:1;">Delete</button>
-                    </div>
+                    <button class="delete-btn" onclick="deleteGameById('${game.id}')" style="width:100%;">Delete</button>
                 </div>
             `;
         }
@@ -713,36 +708,8 @@ async function playGameById(gameId){
 
     const main = gameFiles[mainKey];
 
-    // Open game in overlay
-    const overlay = document.getElementById("gameOverlay");
-    const frame = document.getElementById("gameFrame");
-    const title = document.getElementById("gameTitle");
-
-    if(overlay && frame){
-        title.innerText = "Playing: " + game.name;
-        currentPlaying.gameId = gameId;
-        currentPlaying.gotCreditResponse = false;
-
-        // When iframe loads, ping for credit capability.
-        frame.onload = () => {
-            try{
-                frame.contentWindow?.postMessage({ type: "CRITSTRIKE_PING", gameId }, "*");
-            }catch(_) {}
-
-            if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
-            currentPlaying.creditPingTimer = setTimeout(async () => {
-                // If no response, classify as non-credit (only if not decided yet)
-                if(!currentPlaying.gotCreditResponse && game.creditEligible === null){
-                    try{
-                        await FireDB.setGameCreditEligible(gameId, false);
-                        await loadGames();
-                    }catch(_) {}
-                }
-            }, 2500);
-        };
-        frame.src = main;
-        overlay.style.display = "block";
-    }
+    // Redirect to game player page
+    window.location.href = "player.html?gameId=" + encodeURIComponent(gameId);
 }
 
 // Game ↔ site credit messaging
