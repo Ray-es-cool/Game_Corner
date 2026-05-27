@@ -320,15 +320,56 @@ body{
     <div class="title">Games</div>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="showCategory('action')" id="tabAction">Action</button>
-        <button class="tab-btn" onclick="showCategory('puzzle')" id="tabPuzzle">Puzzle</button>
-        <button class="tab-btn" onclick="showCategory('racing')" id="tabRacing">Racing</button>
-        <button class="tab-btn" onclick="showCategory('strategy')" id="tabStrategy">Strategy</button>
+        <button class="tab-btn active" onclick="showTab('all')" id="tabAll">All</button>
+        <button class="tab-btn" onclick="showTab('credit')" id="tabCredit">Credit Games</button>
+        <button class="tab-btn" onclick="showTab('popular')" id="tabPopular">Most Popular</button>
+        <button class="tab-btn" onclick="showTab('noncredit')" id="tabNonCredit">Non‑Credit Games</button>
     </div>
 
     <div class="game-grid" id="gameGrid"></div>
 </div>
 
+<!-- ADMIN: ADD GAME BUTTON -->
+<button id="addGameBtn" title="Add Game" style="display:none;position:fixed;right:22px;bottom:88px;width:56px;height:56px;border-radius:18px;border:none;background:var(--accent);color:white;font-size:32px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,0.35);z-index:1100;">+</button>
+
+<!-- ADMIN: ADD GAME MODAL -->
+<div class="game-overlay" id="addGameModal" style="display:none;">
+    <div class="game-container" style="height:auto;max-height:90%;padding:0;background:var(--panel);">
+        <div class="game-header">
+            <span>Add Game (Game_Master)</span>
+            <button onclick="closeAddGame()">Close</button>
+        </div>
+        <div style="padding:18px;overflow:auto;max-height:calc(90vh - 50px);">
+            <div class="admin-panel" style="background:transparent;padding:0;">
+                <label>Title</label>
+                <input type="text" id="newGameTitle" placeholder="Game title">
+
+                <label>Thumbnail Image</label>
+                <input type="file" id="newGameThumb" accept="image/*">
+
+                <label>Game Folder (index.html required)</label>
+                <input type="file" id="newGameFiles" webkitdirectory multiple>
+                <div style="font-size:12px;opacity:0.75;margin-top:6px;">
+                    Tip: upload a folder that contains an <b>index.html</b>.
+                </div>
+
+                <label>Credit Mode</label>
+                <select id="newGameCreditMode" style="width:100%;padding:10px;margin-top:5px;border-radius:10px;border:none;background:var(--bg);color:var(--text);">
+                    <option value="auto" selected>Auto (game decides)</option>
+                    <option value="credit">Credit game</option>
+                    <option value="noncredit">Non-credit game</option>
+                </select>
+
+                <label style="margin-top:12px;">
+                    <input type="checkbox" id="newGamePublish" checked style="transform:scale(1.1);margin-right:8px;">
+                    Publish immediately
+                </label>
+
+                <button class="save-btn" onclick="createGameFromModal()">Create Game</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- GAME OVERLAY -->
 <div class="game-overlay" id="gameOverlay">
@@ -350,34 +391,10 @@ body{
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
 let currentUid = localStorage.getItem("currentUid");
-let currentCategory = "action";
-let currentPlaying = { gameId: null };
-
-/* =========================
-   HARDCODED GAMES BY CATEGORY
-========================= */
-const GAMES_BY_CATEGORY = {
-    action: [
-        { id: "action1", name: "Street Fighter", thumbnail: "https://via.placeholder.com/300x200?text=Street+Fighter", url: "Games.html?play=streetfighter" },
-        { id: "action2", name: "Metal Slug", thumbnail: "https://via.placeholder.com/300x200?text=Metal+Slug", url: "Games.html?play=metalslug" },
-        { id: "action3", name: "Contra", thumbnail: "https://via.placeholder.com/300x200?text=Contra", url: "Games.html?play=contra" }
-    ],
-    puzzle: [
-        { id: "puzzle1", name: "Tetris", thumbnail: "https://via.placeholder.com/300x200?text=Tetris", url: "Games.html?play=tetris" },
-        { id: "puzzle2", name: "Sudoku", thumbnail: "https://via.placeholder.com/300x200?text=Sudoku", url: "Games.html?play=sudoku" },
-        { id: "puzzle3", name: "Match 3", thumbnail: "https://via.placeholder.com/300x200?text=Match+3", url: "Games.html?play=match3" }
-    ],
-    racing: [
-        { id: "racing1", name: "Need for Speed", thumbnail: "https://via.placeholder.com/300x200?text=Need+for+Speed", url: "Games.html?play=nfs" },
-        { id: "racing2", name: "Mario Kart", thumbnail: "https://via.placeholder.com/300x200?text=Mario+Kart", url: "Games.html?play=mariokart" },
-        { id: "racing3", name: "Hill Climb", thumbnail: "https://via.placeholder.com/300x200?text=Hill+Climb", url: "Games.html?play=hillclimb" }
-    ],
-    strategy: [
-        { id: "strategy1", name: "Chess", thumbnail: "https://via.placeholder.com/300x200?text=Chess", url: "Games.html?play=chess" },
-        { id: "strategy2", name: "Tower Defense", thumbnail: "https://via.placeholder.com/300x200?text=Tower+Defense", url: "Games.html?play=towerdefense" },
-        { id: "strategy3", name: "RTS Battle", thumbnail: "https://via.placeholder.com/300x200?text=RTS+Battle", url: "Games.html?play=rts" }
-    ]
-};
+let games = [];
+let activeTab = "all";
+let isAdminUser = false;
+let currentPlaying = { gameId: null, creditPingTimer: null, gotCreditResponse: false };
 
 /* =========================
    USER UI
@@ -414,58 +431,143 @@ function loadTokens(){
     el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
 }
 
-/* =========================
-   SHOW GAMES BY CATEGORY
-========================= */
-function showCategory(category){
-    currentCategory = category;
-    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-    document.getElementById("tab" + category.charAt(0).toUpperCase() + category.slice(1))?.classList.add("active");
-    renderGames();
+async function resolveAdmin(){
+    isAdminUser = false;
+    if(!currentUser || !currentUid || !window.FireDB) return false;
+    try{
+        const data = await FireDB.getUserData(currentUid);
+        isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
+        return isAdminUser;
+    }catch(e){
+        isAdminUser = false;
+        return false;
+    }
 }
 
-function renderGames(){
+/* =========================
+   LOAD GAMES
+========================= */
+async function loadGames(){
+    try {
+        // Weekly reset (lazy)
+        if(FireDB.ensureWeeklyReset) {
+            await FireDB.ensureWeeklyReset();
+        }
+
+        // Admin can see everything, users see published only
+        games = await FireDB.getGames(!isAdminUser);
+        renderGamesByTab();
+    } catch(err){
+        console.error("Failed to load games:", err);
+        document.getElementById("gameGrid").innerHTML = "<p>Failed to load games</p>";
+    }
+}
+
+function normalizeGame(g){
+    return {
+        id: g.id,
+        name: g.name || "Untitled",
+        thumbnail: g.thumbnail || "https://via.placeholder.com/200?text=No+Image",
+        published: g.published === true,
+        playsWeek: g.plays_week || 0,
+        playsTotal: g.plays_total || 0,
+        legacyPlayers: g.players || 0,
+        creditEligible: (typeof g.credit_eligible === "boolean") ? g.credit_eligible : null,
+        slotIndex: (typeof g.slot_index === "number") ? g.slot_index : null,
+        gameFiles: g.game_files
+    };
+}
+
+function renderGamesByTab(){
     const grid = document.getElementById("gameGrid");
     if(!grid) return;
 
     grid.innerHTML = "";
 
-    const games = GAMES_BY_CATEGORY[currentCategory] || [];
+    const normalized = (games || []).map(normalizeGame);
 
-    if(games.length === 0){
-        grid.innerHTML = `<div style="opacity:0.7;text-align:center;padding:40px;">No games in this category yet.</div>`;
+    const publishedGames = isAdminUser ? normalized : normalized.filter(g => g.published);
+    let list = publishedGames;
+
+    if(activeTab === "credit"){
+        list = publishedGames.filter(g => g.creditEligible === true);
+    }
+    if(activeTab === "noncredit"){
+        list = publishedGames.filter(g => g.creditEligible === false);
+    }
+    if(activeTab === "popular"){
+        list = [...publishedGames].sort((a,b) => (b.playsWeek || 0) - (a.playsWeek || 0));
+    }
+    if(activeTab === "all"){
+        list = [...publishedGames].sort((a,b) => (b.playsWeek || 0) - (a.playsWeek || 0));
+    }
+
+    if(list.length === 0){
+        grid.innerHTML = `<div style="opacity:0.7;text-align:center;padding:40px;">No games in this section yet.</div>`;
         return;
     }
 
-    for(const game of games){
+    for(const game of list){
         const canPlay = !!currentUser;
+        const creditLabel = game.creditEligible === true ? "🪙 Credit" : (game.creditEligible === false ? "🚫 Non‑credit" : "❓ Auto");
+        const playsLabel = `▶ ${game.playsWeek} this week • ${game.playsTotal} total`;
 
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
             <img src="${game.thumbnail}" alt="${game.name}">
             <h3>${game.name}</h3>
-            <button onclick="playGame('${game.url}')" ${canPlay ? "" : "disabled"}>
+            <p style="margin:6px 0;opacity:0.85;">${creditLabel}</p>
+            <p style="margin:6px 0;opacity:0.7;">${playsLabel}</p>
+            <button onclick="playGameById('${game.id}')" ${canPlay ? "" : "disabled"}>
                 ${canPlay ? "Play" : "Login Required"}
             </button>
         `;
+
+        if(isAdminUser){
+            card.innerHTML += `
+                <div class="admin-panel">
+                    <div style="display:flex;gap:10px;">
+                        <button class="publish-btn" onclick="togglePublishById('${game.id}', ${game.published ? "true" : "false"})" style="flex:1;">
+                            ${game.published ? "Unpublish" : "Publish"}
+                        </button>
+                        <button class="delete-btn" onclick="deleteGameById('${game.id}')" style="flex:1;">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
 
         grid.appendChild(card);
     }
 }
 
 /* =========================
-   PLAY GAME
+   TAB SWITCHING
 ========================= */
-function playGame(url){
-    if(!currentUser){
-        alert("Login required");
-        window.location.href = "login.html";
-        return;
-    }
-    document.getElementById("gameOverlay").style.display = "block";
-    document.getElementById("gameFrame").src = url;
+function showTab(tab){
+    activeTab = tab;
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+    if(tab === "all") document.getElementById("tabAll")?.classList.add("active");
+    if(tab === "credit") document.getElementById("tabCredit")?.classList.add("active");
+    if(tab === "popular") document.getElementById("tabPopular")?.classList.add("active");
+    if(tab === "noncredit") document.getElementById("tabNonCredit")?.classList.add("active");
+    renderGamesByTab();
 }
+
+/* =========================
+   ADMIN: CREATE GAME
+========================= */
+function openAddGame(){
+    if(!isAdminUser) return;
+    document.getElementById("addGameModal").style.display = "block";
+}
+function closeAddGame(){
+    const modal = document.getElementById("addGameModal");
+    if(modal) modal.style.display = "none";
+}
+
+async function createGameFromModal(){
+    if(!isAdminUser){
         alert("Only Game_Master can add games");
         return;
     }
@@ -576,12 +678,46 @@ async function deleteGameById(gameId){
 /* =========================
    PLAY GAME
 ========================= */
-async function playGame(url){
+async function playGameById(gameId){
     if(!currentUser){
         alert("Login required to play games");
         window.location.href = "login.html";
         return;
     }
+
+    const raw = (games || []).find(g => g.id === gameId);
+    if(!raw){
+        alert("Game not found");
+        return;
+    }
+
+    const game = normalizeGame(raw);
+
+    // Increment play count
+    if(FireDB.incrementPlayCountById){
+        await FireDB.incrementPlayCountById(gameId);
+    } else if(game.slotIndex !== null){
+        await FireDB.incrementPlayCount(game.slotIndex);
+    }
+
+    // Parse game files
+    let gameFiles = {};
+    try {
+        gameFiles = typeof game.gameFiles === 'string' ? JSON.parse(game.gameFiles) : (game.gameFiles || {});
+    } catch(e){
+        alert("Error loading game files");
+        return;
+    }
+
+    // Find index.html
+    let mainKey = raw.entry_key || Object.keys(gameFiles).find(p => p.toLowerCase().endsWith("index.html"));
+
+    if(!mainKey){
+        alert("index.html not found in game files");
+        return;
+    }
+
+    const main = gameFiles[mainKey];
 
     // Open game in overlay
     const overlay = document.getElementById("gameOverlay");
@@ -589,11 +725,55 @@ async function playGame(url){
     const title = document.getElementById("gameTitle");
 
     if(overlay && frame){
-        title.innerText = "Playing Game";
-        frame.src = url;
+        title.innerText = "Playing: " + game.name;
+        currentPlaying.gameId = gameId;
+        currentPlaying.gotCreditResponse = false;
+
+        // When iframe loads, ping for credit capability.
+        frame.onload = () => {
+            try{
+                frame.contentWindow?.postMessage({ type: "CRITSTRIKE_PING", gameId }, "*");
+            }catch(_) {}
+
+            if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+            currentPlaying.creditPingTimer = setTimeout(async () => {
+                // If no response, classify as non-credit (only if not decided yet)
+                if(!currentPlaying.gotCreditResponse && game.creditEligible === null){
+                    try{
+                        await FireDB.setGameCreditEligible(gameId, false);
+                        await loadGames();
+                    }catch(_) {}
+                }
+            }, 2500);
+        };
+        frame.src = main;
         overlay.style.display = "block";
     }
 }
+
+// Game ↔ site credit messaging
+window.addEventListener("message", async (event) => {
+    const frame = document.getElementById("gameFrame");
+    if(!frame || event.source !== frame.contentWindow) return;
+    const msg = event.data || {};
+    if(!msg || typeof msg !== "object") return;
+
+    if(msg.type === "CRITSTRIKE_CREDIT_CAPABLE"){
+        currentPlaying.gotCreditResponse = true;
+        if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+        if(currentPlaying.gameId){
+            try{
+                await FireDB.setGameCreditEligible(currentPlaying.gameId, true);
+                await loadGames();
+            }catch(_) {}
+        }
+    }
+
+    if(msg.type === "CRITSTRIKE_CREDIT_AWARD"){
+        currentPlaying.gotCreditResponse = true;
+        if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+
+        const amount = parseInt(msg.amount, 10);
         if(!currentUid || !currentUser || !Number.isFinite(amount) || amount <= 0) return;
 
         try{
@@ -638,16 +818,35 @@ function closeGame(){
 document.addEventListener("DOMContentLoaded", ()=>{
     loadUserUI();
     loadTokens();
-    renderGames();
+    resolveAdmin().then(async () => {
+        const addBtn = document.getElementById("addGameBtn");
+        if(isAdminUser && addBtn){
+            addBtn.style.display = "block";
+            addBtn.onclick = openAddGame;
+        }
+        await loadGames();
+        renderGamesByTab();
 
-    const params = new URLSearchParams(window.location.search);
-    const playUrl = params.get("play");
-    if(playUrl){
-        playGame("Games.html?play=" + playUrl);
-    }
+        const params = new URLSearchParams(window.location.search);
+        const playId = params.get("playId");
+        if(playId){
+            playGameById(playId);
+            return;
+        }
+        const playSlot = params.get("play");
+        if(playSlot !== null && playSlot !== ""){
+            const idx = parseInt(playSlot, 10);
+            if(!Number.isNaN(idx)) {
+                playGame(idx);
+            }
+        }
+    });
 
     // Sync on storage changes
     window.addEventListener("storage", (e)=>{
+        if(e.key === "gamesSync"){
+            loadGames();
+        }
         if(e.key === "userSync"){
             location.reload();
         }
