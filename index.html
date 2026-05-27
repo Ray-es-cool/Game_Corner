@@ -110,42 +110,6 @@ border-radius:10px;
 text-align:center;
 }
 
-.admin{
-display:none;
-margin-top:20px;
-background:var(--card);
-padding:15px;
-border-radius:15px;
-}
-
-.admin input, .admin textarea{
-width:100%;
-padding:10px;
-margin:5px 0;
-border-radius:5px;
-border:none;
-background:var(--bg);
-color:var(--text);
-box-sizing:border-box;
-}
-
-.admin textarea{
-min-height:80px;
-resize:vertical;
-}
-
-.admin button{
-width:100%;
-padding:12px;
-border:none;
-border-radius:10px;
-background:var(--accent);
-color:white;
-cursor:pointer;
-margin-top:10px;
-font-size:16px;
-}
-
 .token{
 position:fixed;
 bottom:20px;
@@ -214,7 +178,6 @@ font-size:30px;
 ========================= */
 let currentUser = localStorage.getItem("currentUser");
 let currentUid = localStorage.getItem("currentUid");
-let isAdminUser = false;
 
 function loadUserUI(){
     let box = document.getElementById("userBox");
@@ -271,10 +234,10 @@ async function loadTokens(){
 ========================= */
 function loadSite(){
     apply({
-        title: "Home",
+        title: "Crit Strike",
         logo: "https://via.placeholder.com/200",
-        updates: "- Welcome to CritStrike!",
-        slogan: "Play. Learn. Repeat"
+        updates: "- Newly launched web service",
+        slogan: "Play Earn Repeat"
     });
 }
 
