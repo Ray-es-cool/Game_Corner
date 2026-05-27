@@ -306,7 +306,10 @@ async function resolveAdmin(){
 ========================= */
 async function loadSite(){
     try{
-        const data = await FireDB.getSiteSettings();
+        const result = await FireDB.getSiteSettings();
+        const data = result.settings || result;
+
+        console.log("Loaded site settings:", data);
 
         apply({
             title: data.title || "Home",
