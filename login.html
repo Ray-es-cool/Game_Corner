@@ -1,308 +1,223 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Login</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
 
-<!-- SQLite Database Client -->
-<script src="sqlite-db.js"></script>
+  <!-- SQLite Database Client -->
+  <script src="sqlite-db.js"></script>
 
-<!-- Shared Styles & Animations -->
-<link rel="stylesheet" href="styles.css">
-<script src="animations.js"></script>
-
-<script>
-
-let isLogin = true;
-
-/* =========================
-   THEME SYSTEM
-========================= */
-function applyTheme(){
-    let theme = localStorage.getItem("theme") || "dark";
-    let root = document.documentElement;
-
-    if(theme === "dark"){
-        root.style.setProperty("--bg", "#000");
-        root.style.setProperty("--panel", "#0a0a0a");
-        root.style.setProperty("--card", "#1f2937");
-        root.style.setProperty("--accent", "#3b82f6");
-        root.style.setProperty("--text", "white");
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background:#1a1a1a;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+      margin:0;
     }
 
-    if(theme === "light"){
-        root.style.setProperty("--bg", "#f3f4f6");
-        root.style.setProperty("--panel", "#ffffff");
-        root.style.setProperty("--card", "#e5e7eb");
-        root.style.setProperty("--accent", "#2563eb");
-        root.style.setProperty("--text", "#111");
+    .box{
+      background:#2a2a2a;
+      padding:30px;
+      width:320px;
+      border-radius:10px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.3);
     }
 
-    if(theme === "pink"){
-        root.style.setProperty("--bg", "#1a001f");
-        root.style.setProperty("--panel", "#2a0a2f");
-        root.style.setProperty("--card", "#3b0f42");
-        root.style.setProperty("--accent", "#ff4fa3");
-        root.style.setProperty("--text", "white");
-    }
-}
-applyTheme();
-
-window.addEventListener("storage", (e)=>{
-    if(e.key === "theme") applyTheme();
-});
-
-/* =========================
-   MODE SWITCH
-========================= */
-function toggleMode(){
-    isLogin = !isLogin;
-
-    let title = document.getElementById("title");
-    let btn = document.querySelector("button[type='button']");
-    let switchText = document.getElementById("switchText");
-
-    if(title) title.innerText = isLogin ? "Login" : "Register";
-    if(btn) btn.innerText = isLogin ? "Login" : "Register";
-
-    if(switchText){
-        switchText.innerText = isLogin
-            ? "Don't have an account? Register"
-            : "Already have an account? Login";
-    }
-}
-
-/* =========================
-   LOGIN / REGISTER
-========================= */
-async function submit(){
-    let user = document.getElementById("username")?.value;
-    let pass = document.getElementById("password")?.value;
-    let msg = document.getElementById("msg");
-
-    if(!msg) return;
-
-    if(!user || !pass){
-        msg.innerText = "Fill all fields";
-        return;
+    h2{
+      text-align:center;
+      margin-bottom:20px;
+      color:#fff;
     }
 
-    /* =========================
-       LOGIN
-    ========================= */
-    if(isLogin){
-        try {
-            const result = await FireDB.login(user, pass);
-
-            if(result){
-                localStorage.setItem("currentUser", user);
-                localStorage.setItem("currentUid", result.uid);
-                localStorage.setItem(user + "_tokens", result.tokens || 0);
-
-                // Sync across all pages
-                localStorage.setItem("userSync", Date.now());
-
-                window.location.href = "index.html";
-            } else {
-                msg.innerText = "Invalid login";
-            }
-        } catch(err){
-            console.error(err);
-            let errorMsg = err.message || "Login failed";
-            if(errorMsg.includes("Invalid") || errorMsg.includes("credentials")){
-                msg.innerText = "Invalid username or password";
-            } else if(errorMsg.includes("User not found")){
-                msg.innerText = "User not found";
-            } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch")){
-                msg.innerText = "Cannot connect to server - check server or network";
-            } else {
-                msg.innerText = errorMsg;
-            }
-        }
+    input{
+      width:100%;
+      padding:12px;
+      margin:10px 0;
+      border:1px solid #444;
+      border-radius:6px;
+      background:#333;
+      color:#fff;
+      box-sizing:border-box;
     }
 
-    /* =========================
-       REGISTER
-    ========================= */
-    else {
-        try {
-            const result = await FireDB.createUser(user, pass, "https://via.placeholder.com/40");
-
-            if(result){
-                msg.innerText = "Account created! You can log in now.";
-                toggleMode();
-            } else {
-                msg.innerText = "Registration failed";
-            }
-        } catch(err){
-            console.error(err);
-            let errorMsg = err.message || "Registration failed";
-            if(errorMsg.includes("already") || errorMsg.includes("exists") || errorMsg.includes("Username")){
-                msg.innerText = "Username already taken";
-            } else if(errorMsg.includes("password") || errorMsg.includes("6")){
-                msg.innerText = "Password must be at least 6 characters";
-            } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch")){
-                msg.innerText = "Cannot connect to server - check server or network";
-            } else {
-                msg.innerText = errorMsg;
-            }
-        }
+    input::placeholder{
+      color:#aaa;
     }
-}
 
-/* =========================
-   LOGOUT
-========================= */
-function logout(){
-    FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    localStorage.setItem("userSync", Date.now());
-    location.reload();
-}
-
-/* =========================
-   INIT
-========================= */
-document.addEventListener("DOMContentLoaded", ()=>{
-    let logoutBtn = document.getElementById("logoutBtn");
-
-    if(localStorage.getItem("currentUser") && logoutBtn){
-        logoutBtn.style.display = "block";
+    button{
+      width:100%;
+      padding:12px;
+      background:#3b82f6;
+      color:white;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+      font-size:16px;
+      margin-top:10px;
     }
-});
 
-/* =========================
-   CROSS PAGE SYNC
-========================= */
-window.addEventListener("storage", (e)=>{
-    if(e.key === "userSync"){
-        location.reload();
+    button:hover{
+      background:#2563eb;
     }
-});
 
-</script>
+    p{
+      text-align:center;
+      margin-top:15px;
+      color:#aaa;
+    }
 
-<style>
-body{
-    margin:0;
-    font-family:Arial;
-    background:var(--bg);
-    color:var(--text);
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
+    a{
+      color:#3b82f6;
+      text-decoration:none;
+    }
 
-.container{
-    width:100%;
-    max-width:400px;
-    padding:30px;
-    background:var(--panel);
-    border-radius:20px;
-    box-shadow:0 0 30px rgba(59,130,246,0.3);
-}
+    a:hover{
+      text-decoration:underline;
+    }
 
-h1{
-    text-align:center;
-    margin-bottom:20px;
-}
+    #msg{
+      text-align:center;
+      margin-top:10px;
+      font-size:14px;
+    }
 
-.input-group{
-    margin-bottom:15px;
-}
+    .error{
+      color:#ef4444;
+    }
 
-.input-group label{
-    display:block;
-    margin-bottom:5px;
-    font-weight:bold;
-}
+    .success{
+      color:#22c55e;
+    }
 
-.input-group input{
-    width:100%;
-    padding:12px;
-    border-radius:10px;
-    border:none;
-    background:var(--card);
-    color:var(--text);
-    font-size:16px;
-    box-sizing:border-box;
-}
+    .switch{
+      text-align:center;
+      margin-top:15px;
+      color:#aaa;
+    }
 
-button{
-    width:100%;
-    padding:12px;
-    border:none;
-    border-radius:10px;
-    background:var(--accent);
-    color:white;
-    font-size:16px;
-    cursor:pointer;
-    margin-top:10px;
-}
+    .switch span{
+      color:#3b82f6;
+      cursor:pointer;
+    }
 
-
-.switch{
-    text-align:center;
-    margin-top:15px;
-    opacity:0.7;
-    cursor:pointer;
-}
-
-.switch:hover{
-    opacity:1;
-}
-
-#msg{
-    text-align:center;
-    margin-top:15px;
-    color:#ef4444;
-}
-
-.nav-link{
-    text-align:center;
-    margin-top:20px;
-}
-
-.nav-link a{
-    color:var(--accent);
-    text-decoration:none;
-}
-
-.nav-link a:hover{
-    text-decoration:underline;
-}
-</style>
+    .switch span:hover{
+      text-decoration:underline;
+    }
+  </style>
 </head>
-
 <body>
 
-<div class="container">
-    <h1 id="title">Login</h1>
+  <div class="box">
+    <h2 id="title">Login</h2>
 
-    <div class="input-group">
-        <label>Username</label>
-        <input type="text" id="username" placeholder="Enter username">
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+
+    <button onclick="submit()" id="submitBtn">Login</button>
+
+    <p id="msg"></p>
+
+    <div class="switch" id="switchText">
+      Don't have an account? <span onclick="toggleMode()">Register</span>
     </div>
 
-    <div class="input-group">
-        <label>Password</label>
-        <input type="password" id="password" placeholder="Enter password">
-    </div>
+    <p>
+      <a href="index.html">← Back to Home</a>
+    </p>
+  </div>
 
-    <button type="button" onclick="submit()">Login</button>
+  <script>
+    let isLogin = true;
 
-    <div class="switch" id="switchText" onclick="toggleMode()">
-        Don't have an account? Register
-    </div>
+    function toggleMode(){
+      isLogin = !isLogin;
+      document.getElementById("title").innerText = isLogin ? "Login" : "Register";
+      document.getElementById("submitBtn").innerText = isLogin ? "Login" : "Register";
+      document.getElementById("switchText").innerHTML = isLogin
+        ? "Don't have an account? <span onclick='toggleMode()'>Register</span>"
+        : "Already have an account? <span onclick='toggleMode()'>Login</span>";
+      document.getElementById("msg").innerText = "";
+    }
 
-    <div id="msg"></div>
+    async function submit(){
+      let user = document.getElementById("username").value.trim();
+      let pass = document.getElementById("password").value;
+      let msg = document.getElementById("msg");
 
-    <div class="nav-link">
-        <a href="index.html">← Back to Home</a>
-    </div>
-</div>
+      if(!user || !pass){
+        msg.innerText = "Please fill in all fields";
+        msg.className = "error";
+        return;
+      }
+
+      if(isLogin){
+        // LOGIN
+        try {
+          const result = await FireDB.login(user, pass);
+
+          if(result){
+            localStorage.setItem("currentUser", user);
+            localStorage.setItem("currentUid", result.uid);
+            localStorage.setItem(user + "_tokens", result.tokens || 0);
+            localStorage.setItem("userSync", Date.now());
+            window.location.href = "index.html";
+          }
+        } catch(err){
+          console.error(err);
+          let errorMsg = err.message || "Login failed";
+
+          if(errorMsg.includes("Invalid") || errorMsg.includes("credentials")){
+            msg.innerText = "Invalid username or password";
+          } else if(errorMsg.includes("User not found")){
+            msg.innerText = "User not found";
+          } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch") || errorMsg.includes("Failed")){
+            msg.innerText = "Cannot connect to server";
+          } else {
+            msg.innerText = errorMsg;
+          }
+          msg.className = "error";
+        }
+      } else {
+        // REGISTER
+        try {
+          const result = await FireDB.createUser(user, pass, "https://via.placeholder.com/40");
+
+          if(result){
+            msg.innerText = "Account created! You can now login.";
+            msg.className = "success";
+            setTimeout(() => {
+              toggleMode();
+            }, 1500);
+          }
+        } catch(err){
+          console.error(err);
+          let errorMsg = err.message || "Registration failed";
+
+          if(errorMsg.includes("already") || errorMsg.includes("exists") || errorMsg.includes("Username")){
+            msg.innerText = "Username already taken";
+          } else if(errorMsg.includes("password") || errorMsg.includes("6")){
+            msg.innerText = "Password must be at least 6 characters";
+          } else if(errorMsg.includes("Server") || errorMsg.includes("connect") || errorMsg.includes("fetch") || errorMsg.includes("Failed")){
+            msg.innerText = "Cannot connect to server";
+          } else {
+            msg.innerText = errorMsg;
+          }
+          msg.className = "error";
+        }
+      }
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener("keydown", function(e){
+      if(e.key === "Enter"){
+        submit();
+      }
+    });
+  </script>
 
 </body>
 </html>
