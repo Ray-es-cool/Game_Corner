@@ -668,45 +668,17 @@ async function deleteGameById(gameId){
    PLAY GAME
 ========================= */
 async function playGameById(gameId){
-    if(!currentUser){
+    if(!SharedState.currentUser){
         alert("Login required to play games");
         window.location.href = "login.html";
         return;
     }
 
-    const raw = (games || []).find(g => g.id === gameId);
+    const raw = (SharedState.games || []).find(g => g.id === gameId);
     if(!raw){
         alert("Game not found");
         return;
     }
-
-    const game = normalizeGame(raw);
-
-    // Increment play count
-    if(FireDB.incrementPlayCountById){
-        await FireDB.incrementPlayCountById(gameId);
-    } else if(game.slotIndex !== null){
-        await FireDB.incrementPlayCount(game.slotIndex);
-    }
-
-    // Parse game files
-    let gameFiles = {};
-    try {
-        gameFiles = typeof game.gameFiles === 'string' ? JSON.parse(game.gameFiles) : (game.gameFiles || {});
-    } catch(e){
-        alert("Error loading game files");
-        return;
-    }
-
-    // Find index.html
-    let mainKey = raw.entry_key || Object.keys(gameFiles).find(p => p.toLowerCase().endsWith("index.html"));
-
-    if(!mainKey){
-        alert("index.html not found in game files");
-        return;
-    }
-
-    const main = gameFiles[mainKey];
 
     // Redirect to game player page
     window.location.href = "player.html?gameId=" + encodeURIComponent(gameId);
