@@ -58,11 +58,17 @@ const SharedState = {
   },
 
   async loadSiteSettings() {
-    if (!window.FireDB) return;
     try {
-      this.siteSettings = await FireDB.getSiteSettings();
+      if (window.GlobalMemory && typeof GlobalMemory.load === 'function') {
+        this.siteSettings = await GlobalMemory.load();
+      } else if (window.FireDB && typeof FireDB.getSiteSettings === 'function') {
+        this.siteSettings = await FireDB.getSiteSettings();
+      } else {
+        const cached = localStorage.getItem("shared_site_settings");
+        this.siteSettings = cached ? JSON.parse(cached) : {};
+      }
       localStorage.setItem("shared_site_settings", JSON.stringify(this.siteSettings));
-    } catch {
+    } catch (e) {
       const cached = localStorage.getItem("shared_site_settings");
       this.siteSettings = cached ? JSON.parse(cached) : {};
     }

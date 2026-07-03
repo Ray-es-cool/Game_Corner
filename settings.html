@@ -15,11 +15,14 @@
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
+<script src="firebase-config.js"></script>
+<script src="global-memory.js"></script>
+<script src="user-memory.js"></script>
 
 <script>
 function applyTheme(){
 
-let theme = localStorage.getItem("theme") || "dark";
+let theme = (window.UserMemory && typeof UserMemory.getTheme === 'function') ? UserMemory.getTheme() : (localStorage.getItem("theme") || "dark");
 let root = document.documentElement;
 
 /* DARK */
@@ -53,7 +56,7 @@ root.style.setProperty("--text", "white");
 applyTheme();
 
 window.addEventListener("storage",(e)=>{
-if(e.key === "theme") applyTheme();
+if(e.key === "theme" || e.key === 'userMemorySync') applyTheme();
 });
 </script>
 
@@ -297,9 +300,13 @@ function goMusic(){
 
 /* THEME */
 function setTheme(theme){
-    localStorage.setItem("theme", theme);
+    if(window.UserMemory && typeof UserMemory.setTheme === 'function'){
+        UserMemory.setTheme(theme);
+    } else {
+        localStorage.setItem("theme", theme);
+        localStorage.setItem("themeSync", Date.now());
+    }
     applyTheme();
-    localStorage.setItem("themeSync", Date.now());
 
     // Update active state
     document.querySelectorAll(".theme-btn").forEach(btn => {
