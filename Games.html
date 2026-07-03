@@ -838,11 +838,20 @@ function closeGame(){
 document.addEventListener("DOMContentLoaded", ()=>{
     loadUserUI();
     loadTokens();
+    // Quick client-side show if localStorage indicates Game_Master (fast feedback)
+    const addBtn = document.getElementById("addGameBtn");
+    if(addBtn && localStorage.getItem("currentUser") === "Game_Master"){
+        addBtn.style.display = "flex";
+        addBtn.onclick = openAddGame;
+    }
+
     resolveAdmin().then(async () => {
-        const addBtn = document.getElementById("addGameBtn");
+        // After server verification, ensure button visibility is correct
         if(isAdminUser && addBtn){
-            addBtn.style.display = "block";
+            addBtn.style.display = "flex";
             addBtn.onclick = openAddGame;
+        } else if(addBtn && !isAdminUser) {
+            addBtn.style.display = "none";
         }
         await loadGames();
         renderGamesByTab();
