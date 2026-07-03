@@ -8,14 +8,40 @@
 <!-- SQLite Database Client -->
 <script src="sqlite-db.js?v=5"></script>
 <script src="animations.js"></script>
+<script>
+function applyTheme(){
+    const theme = localStorage.getItem("theme") || "dark";
+    const root = document.documentElement;
+    if(theme === "dark"){
+        root.style.setProperty("--bg", "#000");
+        root.style.setProperty("--panel", "#0a0a0a");
+        root.style.setProperty("--card", "#1f2937");
+        root.style.setProperty("--accent", "#3b82f6");
+        root.style.setProperty("--text", "white");
+    } else if(theme === "light"){
+        root.style.setProperty("--bg", "#f3f4f6");
+        root.style.setProperty("--panel", "#ffffff");
+        root.style.setProperty("--card", "#e5e7eb");
+        root.style.setProperty("--accent", "#2563eb");
+        root.style.setProperty("--text", "#111");
+    } else if(theme === "pink"){
+        root.style.setProperty("--bg", "#1a001f");
+        root.style.setProperty("--panel", "#2a0a2f");
+        root.style.setProperty("--card", "#3b0f42");
+        root.style.setProperty("--accent", "#ff4fa3");
+        root.style.setProperty("--text", "white");
+    }
+}
+applyTheme();
+window.addEventListener('storage', (e)=>{ if(e.key === 'theme') applyTheme(); });
 
 <link rel="stylesheet" href="styles.css">
 <style>
 body{
     margin:0;
     font-family:Arial, sans-serif;
-    background:#050816;
-    color:#f7fafc;
+    background:var(--bg);
+    color:var(--text);
 }
 
 .nav{
@@ -27,8 +53,8 @@ body{
     align-items:center;
     padding:18px 24px;
     border-radius:28px;
-    background:rgba(15, 23, 42, 0.95);
-    box-shadow:0 16px 40px rgba(59,130,246,0.16);
+    background:var(--panel);
+    box-shadow:0 16px 40px rgba(0,0,0,0.06);
 }
 
 .nav-center{
@@ -39,19 +65,19 @@ body{
 }
 
 .nav a{
-    color:#f8fafc;
+    color:var(--text);
     text-decoration:none;
     padding:10px 16px;
     border-radius:12px;
     transition:background 0.2s ease;
-}
-
-.nav a:hover{
-    background:rgba(59,130,246,0.14);
-}
-
-.user-box{
-    display:flex;
+    .card button.primary{
+        background:var(--accent);
+        color:var(--text);
+    }
+    .card button.secondary{
+        background:var(--card);
+        color:var(--text);
+    }
     align-items:center;
     gap:10px;
     flex-wrap:wrap;
@@ -105,10 +131,10 @@ body{
 }
 
 .card{
-    background:rgba(15, 23, 42, 0.95);
+    background:var(--panel);
     border-radius:22px;
     padding:20px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.35);
+    box-shadow:0 10px 30px rgba(0,0,0,0.25);
     display:flex;
     flex-direction:column;
     gap:14px;
@@ -119,7 +145,7 @@ body{
     height:170px;
     object-fit:cover;
     border-radius:16px;
-    background:#0f172a;
+    background:var(--card);
 }
 
 .card h3{
@@ -190,10 +216,10 @@ body{
     height:68px;
     border-radius:50%;
     border:none;
-    background:#2563eb;
-    color:white;
+    background:var(--accent);
+    color:var(--text);
     font-size:44px;
-    box-shadow:0 20px 45px rgba(37,99,235,0.35);
+    box-shadow:0 20px 45px rgba(0,0,0,0.35);
     cursor:pointer;
     display:flex;
     align-items:center;
@@ -219,10 +245,10 @@ body{
 .modal{
     max-width:700px;
     margin:0 auto;
-    background:#0f172a;
+    background:var(--panel);
     border-radius:24px;
     overflow:hidden;
-    box-shadow:0 24px 60px rgba(0,0,0,0.45);
+    box-shadow:0 24px 60px rgba(0,0,0,0.35);
 }
 
 .modal-header{
@@ -230,7 +256,7 @@ body{
     justify-content:space-between;
     align-items:center;
     padding:24px 28px;
-    background:#111827;
+    background:var(--panel);
 }
 
 .modal-header h2{
@@ -262,9 +288,9 @@ body{
     width:100%;
     padding:12px 14px;
     border-radius:14px;
-    border:1px solid rgba(148,163,184,0.24);
-    background:#111827;
-    color:#f8fafc;
+    border:1px solid rgba(148,163,184,0.12);
+    background:var(--card);
+    color:var(--text);
 }
 
 .modal-body input[type=file] {
@@ -292,8 +318,8 @@ body{
     margin:20px auto;
     padding:16px 20px;
     border-radius:18px;
-    background:rgba(37,99,235,0.12);
-    color:#dbeafe;
+    background:rgba(59,130,246,0.08);
+    color:var(--text);
     text-align:center;
 }
 
@@ -329,7 +355,7 @@ body{
     <div id="gameGrid" class="game-grid"></div>
 </div>
 
-<button id="addGameBtn" class="fab" aria-label="Add Game" title="Add Game">+</button>
+<button id="addGameBtn" class="fab" aria-label="Add Game" title="Add Game" style="display:none;">+</button>
 
 <div class="game-overlay" id="addGameModal">
     <div class="modal">
