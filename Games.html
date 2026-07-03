@@ -1,30 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Games</title>
 
-<!-- SQLite Database Client -->
-<script src="sqlite-db.js?v=5"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+<script src="firebase-env.js"></script>
+<script src="firebase-config.js"></script>
+
+<!-- Shared Styles & Animations -->
+<link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
+
 <script>
 function applyTheme(){
-    const theme = localStorage.getItem("theme") || "dark";
-    const root = document.documentElement;
+    let theme = localStorage.getItem("theme") || "dark";
+    let root = document.documentElement;
+
     if(theme === "dark"){
         root.style.setProperty("--bg", "#000");
         root.style.setProperty("--panel", "#0a0a0a");
         root.style.setProperty("--card", "#1f2937");
         root.style.setProperty("--accent", "#3b82f6");
         root.style.setProperty("--text", "white");
-    } else if(theme === "light"){
+    }
+
+    if(theme === "light"){
         root.style.setProperty("--bg", "#f3f4f6");
         root.style.setProperty("--panel", "#ffffff");
         root.style.setProperty("--card", "#e5e7eb");
         root.style.setProperty("--accent", "#2563eb");
         root.style.setProperty("--text", "#111");
-    } else if(theme === "pink"){
+    }
+
+    if(theme === "pink"){
         root.style.setProperty("--bg", "#1a001f");
         root.style.setProperty("--panel", "#2a0a2f");
         root.style.setProperty("--card", "#3b0f42");
@@ -33,174 +46,109 @@ function applyTheme(){
     }
 }
 applyTheme();
-window.addEventListener('storage', (e)=>{ if(e.key === 'theme') applyTheme(); });
 
-<link rel="stylesheet" href="styles.css">
+window.addEventListener("storage",(e)=>{
+    if(e.key === "theme") applyTheme();
+});
+</script>
+
 <style>
 body{
     margin:0;
-    font-family:Arial, sans-serif;
+    font-family:Arial;
     background:var(--bg);
     color:var(--text);
 }
 
+/* NAV */
 .nav{
-    width:90%;
-    max-width:1200px;
-    margin:24px auto;
+    width:80%;
+    margin:20px auto;
     display:flex;
     justify-content:space-between;
     align-items:center;
-    padding:18px 24px;
-    border-radius:28px;
+    padding:15px 30px;
+    border-radius:30px;
     background:var(--panel);
-    box-shadow:0 16px 40px rgba(0,0,0,0.06);
+    box-shadow:0 0 20px rgba(59,130,246,0.4);
 }
 
 .nav-center{
     display:flex;
-    gap:18px;
-    flex-wrap:wrap;
-    justify-content:center;
+    gap:30px;
+    margin:auto;
 }
 
 .nav a{
     color:var(--text);
     text-decoration:none;
-    padding:10px 16px;
-    border-radius:12px;
-    transition:background 0.2s ease;
-    .card button.primary{
-        background:var(--accent);
-        color:var(--text);
-    }
-    .card button.secondary{
-        background:var(--card);
-        color:var(--text);
-    }
-    align-items:center;
-    gap:10px;
-    flex-wrap:wrap;
+    padding:8px 14px;
+    border-radius:10px;
 }
 
+.nav a:hover{
+    background:var(--card);
+}
+
+.user-box{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+/* MAIN */
 .main{
-    width:90%;
-    max-width:1200px;
-    margin:0 auto 40px;
-    padding:0 0 30px;
+    width:80%;
+    margin:auto;
+    padding:20px 0;
 }
 
 .title{
     text-align:center;
-    font-size:44px;
-    margin:10px auto 24px;
+    font-size:40px;
+    margin-bottom:20px;
 }
 
-.tabs{
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:center;
-    gap:12px;
-    margin-bottom:24px;
-}
-
-.tab-btn{
-    padding:12px 22px;
-    border:none;
-    border-radius:999px;
-    background:rgba(15, 23, 42, 0.85);
-    color:#e2e8f0;
-    cursor:pointer;
-    transition:transform 0.2s ease, background 0.2s ease;
-}
-
-.tab-btn:hover{
-    transform:translateY(-1px);
-    background:rgba(59,130,246,0.16);
-}
-
-.tab-btn.active{
-    background:#2563eb;
-    color:white;
-}
-
+/* GAME GRID */
 .game-grid{
     display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
-    gap:22px;
+    grid-template-columns:repeat(auto-fill, minmax(250px, 1fr));
+    gap:20px;
 }
 
 .card{
     background:var(--panel);
-    border-radius:22px;
-    padding:20px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.25);
-    display:flex;
-    flex-direction:column;
-    gap:14px;
+    border-radius:15px;
+    padding:15px;
+    box-shadow:0 0 15px rgba(59,130,246,0.2);
+    text-align:center;
 }
 
 .card img{
     width:100%;
-    height:170px;
+    height:150px;
     object-fit:cover;
-    border-radius:16px;
+    border-radius:10px;
     background:var(--card);
 }
 
 .card h3{
-    margin:0;
-    font-size:22px;
+    margin:10px 0 5px;
 }
 
 .card p{
-    margin:0;
-    opacity:0.8;
-}
-
-.card .meta{
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    font-size:14px;
-    opacity:0.85;
-}
-
-.card .actions{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-top:auto;
+    opacity:0.7;
+    margin-bottom:10px;
 }
 
 .card button{
-    flex:1;
-    min-width:120px;
-    padding:12px 16px;
+    padding:10px 20px;
     border:none;
-    border-radius:14px;
+    border-radius:10px;
+    background:var(--accent);
+    color:white;
     cursor:pointer;
-    font-weight:600;
-    transition:transform 0.2s ease, opacity 0.2s ease;
-}
-
-.card button:hover{
-    transform:translateY(-1px);
-}
-
-.card button.primary{
-    background:#2563eb;
-    color:white;
-}
-
-.card button.secondary{
-    background:rgba(255,255,255,0.08);
-    color:#f8fafc;
-}
-
-.card button.danger{
-    background:#ef4444;
-    color:white;
+    margin:5px;
 }
 
 .card button:disabled{
@@ -208,131 +156,160 @@ body{
     cursor:not-allowed;
 }
 
-.fab{
-    position:fixed;
-    right:24px;
-    bottom:24px;
-    width:68px;
-    height:68px;
-    border-radius:50%;
+/* Game card hover - enhanced with shared styles */
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+/* ADMIN PANEL */
+.admin-panel{
+    margin-top:15px;
+    padding:15px;
+    background:var(--card);
+    border-radius:10px;
+    text-align:left;
+}
+
+.admin-panel input[type="text"],
+.admin-panel input[type="file"]{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+    border-radius:5px;
     border:none;
-    background:var(--accent);
+    background:var(--bg);
     color:var(--text);
-    font-size:44px;
-    box-shadow:0 20px 45px rgba(0,0,0,0.35);
+}
+
+.admin-panel label{
+    display:block;
+    margin-top:10px;
+    font-weight:bold;
+    color:var(--accent);
+}
+
+.admin-panel button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border:none;
+    border-radius:10px;
     cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    z-index:1200;
-    transition:transform 0.2s ease;
+    background:var(--accent);
+    color:white;
 }
 
-.fab:hover{
-    transform:scale(1.04);
+.admin-panel .save-btn{
+    background:#22c55e;
 }
 
+.admin-panel .publish-btn{
+    background:var(--accent);
+}
+
+.admin-panel .delete-btn{
+    background:#ef4444;
+}
+
+.admin-panel .publish-btn:disabled{
+    background:#4b5563;
+    cursor:not-allowed;
+}
+
+/* EMPTY SLOT */
+.empty-slot{
+    background:var(--panel);
+    border:2px dashed var(--card);
+    border-radius:15px;
+    padding:40px 20px;
+    text-align:center;
+    color:var(--text);
+    opacity:0.5;
+}
+
+/* GAME OVERLAY */
 .game-overlay{
     display:none;
     position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.85);
-    z-index:1300;
-    padding:32px;
-    overflow:auto;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.9);
+    z-index:1000;
 }
 
-.modal{
-    max-width:700px;
-    margin:0 auto;
-    background:var(--panel);
-    border-radius:24px;
+.game-container{
+    width:90%;
+    height:90%;
+    margin:2% auto;
+    background:#111;
+    border-radius:10px;
     overflow:hidden;
-    box-shadow:0 24px 60px rgba(0,0,0,0.35);
 }
 
-.modal-header{
+.game-frame{
+    width:100%;
+    height:calc(100% - 50px);
+    border:none;
+}
+
+.game-header{
+    height:50px;
+    background:var(--panel);
     display:flex;
     justify-content:space-between;
     align-items:center;
-    padding:24px 28px;
-    background:var(--panel);
+    padding:0 20px;
 }
 
-.modal-header h2{
-    margin:0;
-    font-size:24px;
-}
-
-.modal-header button{
+.game-header button{
+    padding:8px 16px;
+    background:#ef4444;
+    color:white;
     border:none;
-    background:transparent;
-    color:#f8fafc;
-    font-size:28px;
+    border-radius:6px;
     cursor:pointer;
 }
 
-.modal-body{
-    padding:24px 28px 28px;
-    display:grid;
-    gap:18px;
+/* TOKEN */
+.token{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:32px;
 }
 
-.modal-body label{
-    font-weight:700;
-    color:#bfdbfe;
+/* TABS */
+.tabs{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+    justify-content:center;
 }
 
-.modal-body input,
-.modal-body select{
-    width:100%;
-    padding:12px 14px;
-    border-radius:14px;
-    border:1px solid rgba(148,163,184,0.12);
+.tab-btn{
+    padding:10px 20px;
     background:var(--card);
     color:var(--text);
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
 }
 
-.modal-body input[type=file] {
-    padding:10px 12px;
-}
-
-.modal-body .help-text{
-    color:#94a3b8;
-    font-size:13px;
-}
-
-.modal-body .button-row{
-    display:flex;
-    gap:12px;
-    flex-wrap:wrap;
-}
-
-.modal-body .button-row button{
-    flex:1;
-}
-
-.status-banner{
-    width:90%;
-    max-width:1200px;
-    margin:20px auto;
-    padding:16px 20px;
-    border-radius:18px;
-    background:rgba(59,130,246,0.08);
-    color:var(--text);
-    text-align:center;
-}
-
-@media(max-width:700px){
-    .nav{flex-direction:column;align-items:flex-start;gap:16px;}
-    .game-grid{grid-template-columns:1fr;}
-    .modal-body{padding:20px;}
+.tab-btn.active{
+    background:var(--accent);
 }
 </style>
 </head>
+
 <body>
 
+<!-- NAV -->
 <div class="nav">
+    <div></div>
     <div class="nav-center">
         <a href="index.html">Home</a>
         <a href="Games.html">Games</a>
@@ -343,88 +320,101 @@ body{
     <div class="user-box" id="userBox"></div>
 </div>
 
+<!-- MAIN -->
 <div class="main">
     <div class="title">Games</div>
+
     <div class="tabs">
-        <button class="tab-btn active" data-tab="all">All</button>
-        <button class="tab-btn" data-tab="credit">Credit Games</button>
-        <button class="tab-btn" data-tab="popular">Most Popular</button>
-        <button class="tab-btn" data-tab="noncredit">Non-Credit</button>
+        <button class="tab-btn active" onclick="showTab('all')" id="tabAll">All</button>
+        <button class="tab-btn" onclick="showTab('credit')" id="tabCredit">Credit Games</button>
+        <button class="tab-btn" onclick="showTab('popular')" id="tabPopular">Most Popular</button>
+        <button class="tab-btn" onclick="showTab('noncredit')" id="tabNonCredit">Non‑Credit Games</button>
     </div>
-    <div id="statusBanner" class="status-banner" style="display:none;"></div>
-    <div id="gameGrid" class="game-grid"></div>
+
+    <div class="game-grid" id="gameGrid"></div>
 </div>
 
-<button id="addGameBtn" class="fab" aria-label="Add Game" title="Add Game" style="display:none;">+</button>
+<!-- ADMIN: ADD GAME BUTTON (Big blue plus) - visible by default; hidden by JS for non-admins -->
+<button id="addGameBtn" title="Add Game" aria-label="Add Game" style="position:fixed;right:20px;bottom:20px;width:72px;height:72px;border-radius:50%;border:none;background:var(--accent);color:white;font-size:44px;cursor:pointer;box-shadow:0 12px 36px rgba(0,0,0,0.35);z-index:1100;display:flex;align-items:center;justify-content:center;">+</button>
 
-<div class="game-overlay" id="addGameModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h2>Publish New Game</h2>
-            <button onclick="closeAddGame()">×</button>
+<!-- ADMIN: ADD GAME MODAL -->
+<div class="game-overlay" id="addGameModal" style="display:none;">
+    <div class="game-container" style="height:auto;max-height:90%;padding:0;background:var(--panel);">
+        <div class="game-header">
+            <span>Add Game (Game_Master)</span>
+            <button onclick="closeAddGame()">Close</button>
         </div>
-        <div class="modal-body">
-            <label>Title</label>
-            <input id="newGameTitle" type="text" placeholder="Game title">
+        <div style="padding:18px;overflow:auto;max-height:calc(90vh - 50px);">
+            <div class="admin-panel" style="background:transparent;padding:0;">
+                <label>Title</label>
+                <input type="text" id="newGameTitle" placeholder="Game title">
 
-            <label>Thumbnail Image</label>
-            <input id="newGameThumb" type="file" accept="image/*">
+                <label>Thumbnail Image</label>
+                <input type="file" id="newGameThumb" accept="image/*" required>
 
-            <label>Game Folder (index.html required)</label>
-            <input id="newGameFiles" type="file" webkitdirectory multiple>
-            <div class="help-text">Upload a folder containing the game's <strong>index.html</strong> and assets.</div>
+                <label>Game Folder (index.html required)</label>
+                <input type="file" id="newGameFiles" webkitdirectory multiple required>
+                <div style="font-size:12px;opacity:0.75;margin-top:6px;">
+                    Tip: upload a folder that contains an <b>index.html</b>.
+                </div>
 
-            <label>Credit Mode</label>
-            <select id="newGameCreditMode">
-                <option value="auto">Auto (game decides)</option>
-                <option value="credit">Credit game</option>
-                <option value="noncredit">Non-credit game</option>
-            </select>
+                <label>Credit Mode</label>
+                <select id="newGameCreditMode" style="width:100%;padding:10px;margin-top:5px;border-radius:10px;border:none;background:var(--bg);color:var(--text);">
+                    <option value="auto" selected>Auto (game decides)</option>
+                    <option value="credit">Credit game</option>
+                    <option value="noncredit">Non-credit game</option>
+                </select>
 
-            <label style="display:flex;align-items:center;gap:10px;">
-                <input id="newGamePublish" type="checkbox" checked>
-                Publish immediately
-            </label>
+                <label style="margin-top:12px;">
+                    <input type="checkbox" id="newGamePublish" checked style="transform:scale(1.1);margin-right:8px;">
+                    Publish immediately
+                </label>
 
-            <div class="button-row">
-                <button class="primary" onclick="createGameFromModal()">Create</button>
-                <button class="secondary" onclick="closeAddGame()">Cancel</button>
+                <button class="save-btn" onclick="createGameFromModal()">Create & Publish</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- GAME OVERLAY -->
+<div class="game-overlay" id="gameOverlay">
+    <div class="game-container">
+        <div class="game-header">
+            <span id="gameTitle">Playing Game</span>
+            <button onclick="closeGame()">Close Game</button>
+        </div>
+        <iframe class="game-frame" id="gameFrame" src=""></iframe>
+    </div>
+</div>
+
+<div class="token" id="tokens">🪙 0</div>
+
 <script>
-const ADMIN_NAME = "Game_Master";
+
+/* =========================
+   STATE
+========================= */
 let currentUser = localStorage.getItem("currentUser");
 let currentUid = localStorage.getItem("currentUid");
 let games = [];
 let activeTab = "all";
 let isAdminUser = false;
+let currentPlaying = { gameId: null, creditPingTimer: null, gotCreditResponse: false };
 
-function isGameMaster() {
-    return String(currentUser || "").trim().toLowerCase() === ADMIN_NAME.toLowerCase();
-}
-
-function canManageGames(){
-    return isAdminUser || isGameMaster();
-}
-
-function setStatus(message){
-    const banner = document.getElementById("statusBanner");
-    if(!message){ banner.style.display = "none"; return; }
-    banner.innerText = message;
-    banner.style.display = "block";
-}
-
+/* =========================
+   USER UI
+========================= */
 function loadUserUI(){
-    const box = document.getElementById("userBox");
+    let box = document.getElementById("userBox");
     if(!box) return;
+
     if(currentUser){
         box.innerHTML = `
-            <span style="font-weight:700;">${currentUser}</span>
-            <button onclick="logoutUser()" style="padding:8px 14px;border:none;border-radius:12px;background:#ef4444;color:white;cursor:pointer;">Logout</button>
-            <span style="font-size:14px;opacity:0.78;">🪙 ${localStorage.getItem(currentUser + "_tokens") || 0}</span>
+            <span>${currentUser}</span>
+            <button onclick="logoutUser()"
+            style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
+            Logout
+            </button>
         `;
     } else {
         box.innerHTML = `<a href="login.html">Login</a>`;
@@ -432,161 +422,196 @@ function loadUserUI(){
 }
 
 function logoutUser(){
+    if(window.FireDB) FireDB.logout();
     localStorage.removeItem("currentUser");
     localStorage.removeItem("currentUid");
     currentUser = null;
-    currentUid = null;
     localStorage.setItem("userSync", Date.now());
     location.reload();
 }
 
+function loadTokens(){
+    let el = document.getElementById("tokens");
+    if(!el || !currentUser) return;
+    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+}
+
 async function resolveAdmin(){
     isAdminUser = false;
-    if(!currentUser) return false;
-    if(isGameMaster() && !currentUid){
-        isAdminUser = true;
-        return true;
-    }
-    if(!currentUid || !window.FireDB) return false;
+    if(!currentUser || !currentUid || !window.FireDB) return false;
     try{
         const data = await FireDB.getUserData(currentUid);
-        isAdminUser = data?.username === ADMIN_NAME && isGameMaster();
+        isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
         return isAdminUser;
-    } catch {
+    }catch(e){
         isAdminUser = false;
         return false;
     }
 }
 
-function updateAddButton(){
-    const addBtn = document.getElementById("addGameBtn");
-    if(!addBtn) return;
-    if(canManageGames()){
-        addBtn.style.display = "flex";
-        addBtn.onclick = openAddGame;
-    } else {
-        addBtn.style.display = "none";
-    }
-}
-
+/* =========================
+   LOAD GAMES
+========================= */
 async function loadGames(){
-    if(!window.FireDB){
-        setStatus("The game server is not available yet. Refresh when the site is ready.");
-        return;
-    }
-    try{
-        const publishedOnly = !isAdminUser;
-        games = await FireDB.getGames(publishedOnly);
-        renderGames();
-        setStatus("");
+    try {
+        // Weekly reset (lazy)
+        if(FireDB.ensureWeeklyReset) {
+            await FireDB.ensureWeeklyReset();
+        }
+
+        // Admin can see everything, users see published only
+        games = await FireDB.getGames(!isAdminUser);
+        renderGamesByTab();
     } catch(err){
-        console.error(err);
-        setStatus("Failed to load games. Please refresh the page.");
-        games = [];
-        renderGames();
+        console.error("Failed to load games:", err);
+        document.getElementById("gameGrid").innerHTML = "<p>Failed to load games</p>";
     }
 }
 
-function sortGames(list){
-    return [...list].sort((a,b) => (b.plays_week || 0) - (a.plays_week || 0));
+function normalizeGame(g){
+    return {
+        id: g.id,
+        name: g.name || "Untitled",
+        thumbnail: g.thumbnail || "https://via.placeholder.com/200?text=No+Image",
+        published: g.published === true,
+        playsWeek: g.plays_week || 0,
+        playsTotal: g.plays_total || 0,
+        legacyPlayers: g.players || 0,
+        creditEligible: (typeof g.credit_eligible === "boolean") ? g.credit_eligible : null,
+        slotIndex: (typeof g.slot_index === "number") ? g.slot_index : null,
+        gameFiles: g.game_files
+    };
 }
 
-function renderGames(){
+function renderGamesByTab(){
     const grid = document.getElementById("gameGrid");
     if(!grid) return;
+
     grid.innerHTML = "";
-    let visible = [...games];
+
+    const normalized = (games || []).map(normalizeGame);
+
+    const publishedGames = isAdminUser ? normalized : normalized.filter(g => g.published);
+    let list = publishedGames;
+
     if(activeTab === "credit"){
-        visible = visible.filter(g => g.credit_eligible === true);
-    } else if(activeTab === "noncredit"){
-        visible = visible.filter(g => g.credit_eligible === false);
-    } else if(activeTab === "popular"){
-        visible = sortGames(visible);
+        list = publishedGames.filter(g => g.creditEligible === true);
     }
-    if(!isAdminUser){
-        visible = visible.filter(g => g.published === true);
+    if(activeTab === "noncredit"){
+        list = publishedGames.filter(g => g.creditEligible === false);
     }
-    if(visible.length === 0){
-        grid.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#cbd5e1;opacity:0.85;">No games found in this section.</div>`;
+    if(activeTab === "popular"){
+        list = [...publishedGames].sort((a,b) => (b.playsWeek || 0) - (a.playsWeek || 0));
+    }
+    if(activeTab === "all"){
+        list = [...publishedGames].sort((a,b) => (b.playsWeek || 0) - (a.playsWeek || 0));
+    }
+
+    if(list.length === 0){
+        grid.innerHTML = `<div style="opacity:0.7;text-align:center;padding:40px;">No games in this section yet.</div>`;
         return;
     }
-    visible.forEach(game => {
+
+    for(const game of list){
+        const canPlay = !!currentUser;
+        const creditLabel = game.creditEligible === true ? "🪙 Credit" : (game.creditEligible === false ? "🚫 Non‑credit" : "❓ Auto");
+        const playsLabel = `▶ ${game.playsWeek} this week • ${game.playsTotal} total`;
+
         const card = document.createElement("div");
         card.className = "card";
-        const publishedText = game.published ? "Published" : "Unpublished";
-        const creditText = game.credit_eligible === true ? "Credit" : (game.credit_eligible === false ? "Non-credit" : "Auto");
         card.innerHTML = `
-            <img src="${game.thumbnail || 'https://via.placeholder.com/400x240?text=No+Image'}" alt="${game.name}">
-            <h3>${game.name || "Untitled Game"}</h3>
-            <div class="meta">${creditText} · ${publishedText}</div>
-            <div class="meta">${game.plays_week || 0} plays this week · ${game.plays_total || 0} total</div>
-            <div class="actions">
-                <button class="primary" onclick="playGameById('${game.id}')">Play</button>
-                ${canManageGames() ? `<button class="secondary" onclick="openAdminPanel('${game.id}')">Manage</button>` : ""}
-            </div>
+            <img src="${game.thumbnail}" alt="${game.name}">
+            <h3>${game.name}</h3>
+            <p style="margin:6px 0;opacity:0.85;">${creditLabel}</p>
+            <p style="margin:6px 0;opacity:0.7;">${playsLabel}</p>
+            <button onclick="playGameById('${game.id}')" ${canPlay ? "" : "disabled"}>
+                ${canPlay ? "Play" : "Login Required"}
+            </button>
         `;
-        if(canManageGames()){
-            const adminRow = document.createElement("div");
-            adminRow.className = "actions";
-            adminRow.innerHTML = `
-                <button class="secondary" onclick="togglePublishById('${game.id}', ${game.published ? 'true' : 'false'})">${game.published ? 'Unpublish' : 'Publish'}</button>
-                <button class="danger" onclick="deleteGameById('${game.id}')">Delete</button>
+
+        if(isAdminUser){
+            card.innerHTML += `
+                <div class="admin-panel">
+                    <div style="display:flex;gap:10px;">
+                        <button class="publish-btn" onclick="togglePublishById('${game.id}', ${game.published ? "true" : "false"})" style="flex:1;">
+                            ${game.published ? "Unpublish" : "Publish"}
+                        </button>
+                        <button class="delete-btn" onclick="deleteGameById('${game.id}')" style="flex:1;">Delete</button>
+                    </div>
+                </div>
             `;
-            card.appendChild(adminRow);
         }
+
         grid.appendChild(card);
-    });
+    }
 }
 
-function updateTabButtons(){
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        const tab = btn.getAttribute('data-tab');
-        btn.classList.toggle('active', tab === activeTab);
-    });
-}
-
+/* =========================
+   TAB SWITCHING
+========================= */
 function showTab(tab){
     activeTab = tab;
-    updateTabButtons();
-    renderGames();
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+    if(tab === "all") document.getElementById("tabAll")?.classList.add("active");
+    if(tab === "credit") document.getElementById("tabCredit")?.classList.add("active");
+    if(tab === "popular") document.getElementById("tabPopular")?.classList.add("active");
+    if(tab === "noncredit") document.getElementById("tabNonCredit")?.classList.add("active");
+    renderGamesByTab();
 }
 
+/* =========================
+   ADMIN: CREATE GAME
+========================= */
 function openAddGame(){
-    if(!canManageGames()) return;
+    if(!isAdminUser) return;
     document.getElementById("addGameModal").style.display = "block";
 }
-
 function closeAddGame(){
-    document.getElementById("addGameModal").style.display = "none";
-}
-
-function clearAddForm(){
-    document.getElementById("newGameTitle").value = "";
-    document.getElementById("newGameThumb").value = "";
-    document.getElementById("newGameFiles").value = "";
-    document.getElementById("newGameCreditMode").value = "auto";
-    document.getElementById("newGamePublish").checked = true;
+    const modal = document.getElementById("addGameModal");
+    if(modal) modal.style.display = "none";
 }
 
 async function createGameFromModal(){
-    if(!canManageGames()){
-        alert("Only Game_Master can add games.");
+    if(!isAdminUser){
+        alert("Only Game_Master can add games");
         return;
     }
-    const title = document.getElementById("newGameTitle").value.trim();
-    const thumbFile = document.getElementById("newGameThumb").files[0];
-    const gameFiles = document.getElementById("newGameFiles").files;
-    const creditMode = document.getElementById("newGameCreditMode").value;
-    const publish = document.getElementById("newGamePublish").checked;
-    if(!title){ alert("Enter a title."); return; }
-    if(!thumbFile){ alert("Upload a thumbnail."); return; }
-    if(!gameFiles || gameFiles.length === 0){ alert("Upload a game folder with index.html."); return; }
+
+    const title = document.getElementById("newGameTitle")?.value?.trim();
+    const thumbFile = document.getElementById("newGameThumb")?.files?.[0];
+    const gameFiles = document.getElementById("newGameFiles")?.files;
+    const creditMode = document.getElementById("newGameCreditMode")?.value || "auto";
+    const publish = !!document.getElementById("newGamePublish")?.checked;
+
+    if(!title){
+        alert("Please enter a title");
+        return;
+    }
+    if(!thumbFile){
+        alert("Please upload a thumbnail image");
+        return;
+    }
+    if(!gameFiles || gameFiles.length === 0){
+        alert("Please upload a game folder (must include index.html)");
+        return;
+    }
+
+    // Ensure index.html exists
     const indexFile = Array.from(gameFiles).find(f => f.name.toLowerCase() === "index.html");
-    if(!indexFile){ alert("Game folder must include index.html."); return; }
-    const creditEligible = creditMode === "credit" ? true : (creditMode === "noncredit" ? false : null);
+    if(!indexFile){
+        alert("Game folder must contain index.html");
+        return;
+    }
+
+    const creditEligible =
+        creditMode === "credit" ? true :
+        creditMode === "noncredit" ? false :
+        null;
+
+    const thumbData = await readFileAsDataUrl(thumbFile);
+    const fileData = await readFilesAsDataUrlMap(gameFiles);
+
     try{
-        const thumbData = await readFileAsDataUrl(thumbFile);
-        const fileData = await readFilesAsDataUrlMap(gameFiles);
         await FireDB.createGame({
             name: title,
             thumbnail: thumbData,
@@ -595,117 +620,271 @@ async function createGameFromModal(){
             publish,
             creditEligible
         });
+        if(window.CritAnimations?.showToast) CritAnimations.showToast("Game created");
         closeAddGame();
-        clearAddForm();
-        setStatus("Game created successfully.");
         await loadGames();
-    } catch(err){
-        console.error(err);
-        alert("Create error: " + (err.message || err));
+    }catch(err){
+        alert("Create error: " + err.message);
     }
 }
 
 function readFileAsDataUrl(file){
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error("Failed to read file."));
-        reader.readAsDataURL(file);
+        const r = new FileReader();
+        r.onload = (e) => resolve(e.target.result);
+        r.onerror = () => reject(new Error("Failed to read file"));
+        r.readAsDataURL(file);
     });
 }
 
 function readFilesAsDataUrlMap(fileList){
     return new Promise((resolve) => {
         const files = Array.from(fileList || []);
-        const result = {};
+        const map = {};
         let loaded = 0;
-        if(files.length === 0){ resolve(result); return; }
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                result[file.webkitRelativePath || file.name] = reader.result;
-                loaded += 1;
-                if(loaded === files.length) resolve(result);
+        if(files.length === 0) return resolve(map);
+        for(const f of files){
+            const r = new FileReader();
+            r.onload = (e) => {
+                map[f.webkitRelativePath || f.name] = e.target.result;
+                loaded++;
+                if(loaded === files.length) resolve(map);
             };
-            reader.onerror = () => {
-                loaded += 1;
-                if(loaded === files.length) resolve(result);
+            r.onerror = () => {
+                loaded++;
+                if(loaded === files.length) resolve(map);
             };
-            reader.readAsDataURL(file);
-        });
+            r.readAsDataURL(f);
+        }
     });
 }
 
 async function togglePublishById(gameId, currentlyPublished){
-    if(!canManageGames()) return;
+    if(!isAdminUser) return;
     try{
         await FireDB.updateGameById(gameId, { published: !currentlyPublished });
         await loadGames();
-    } catch(err){
-        alert("Publish failed: " + (err.message || err));
+    }catch(err){
+        alert("Publish error: " + err.message);
     }
 }
 
 async function deleteGameById(gameId){
-    if(!canManageGames()) return;
-    if(!confirm("Delete this game permanently?")) return;
+    if(!isAdminUser) return;
+    if(!confirm("Delete this game?")) return;
     try{
         await FireDB.deleteGameById(gameId);
         await loadGames();
-    } catch(err){
-        alert("Delete failed: " + (err.message || err));
+    }catch(err){
+        alert("Delete error: " + err.message);
     }
 }
 
-function playGameById(gameId){
+/* =========================
+   PLAY GAME
+========================= */
+async function playGameById(gameId){
     if(!currentUser){
-        alert("You must be logged in to play.");
+        alert("Login required to play games");
         window.location.href = "login.html";
         return;
     }
-    window.location.href = `player.html?gameId=${encodeURIComponent(gameId)}`;
-}
 
-function openAdminPanel(gameId){
-    const game = games.find(g => g.id === gameId);
-    if(!game) return;
-    const publishAction = game.published ? "Unpublish" : "Publish";
-    if(confirm(`Manage game \"${game.name}\"? Press OK to ${publishAction} or Cancel to delete.`)){
-        togglePublishById(gameId, game.published);
+    const raw = (games || []).find(g => g.id === gameId);
+    if(!raw){
+        alert("Game not found");
+        return;
+    }
+
+    const game = normalizeGame(raw);
+
+    // Increment play count
+    if(FireDB.incrementPlayCountById){
+        await FireDB.incrementPlayCountById(gameId);
+    } else if(game.slotIndex !== null){
+        await FireDB.incrementPlayCount(game.slotIndex);
+    }
+
+    // Parse game files - now they are Storage URLs
+    let gameFiles = {};
+    try {
+        gameFiles = typeof game.gameFiles === 'string' ? JSON.parse(game.gameFiles) : (game.gameFiles || {});
+    } catch(e){
+        alert("Error loading game files");
+        return;
+    }
+
+    // Find index.html
+    let mainKey = raw.entry_key || Object.keys(gameFiles).find(p => p.toLowerCase().endsWith("index.html"));
+
+    if(!mainKey){
+        alert("index.html not found in game files");
+        return;
+    }
+
+    // Get Storage URL for index.html
+    const indexUrl = gameFiles[mainKey];
+    
+    if(!indexUrl){
+        alert("Cannot load game files");
+        return;
+    }
+
+    try {
+        // For direct Storage URLs, we can set src directly (browser will handle it)
+        // Storage URLs support CORS by default
+        const overlay = document.getElementById("gameOverlay");
+        const frame = document.getElementById("gameFrame");
+        const title = document.getElementById("gameTitle");
+
+        if(overlay && frame){
+            title.innerText = "Playing: " + game.name;
+            currentPlaying.gameId = gameId;
+            currentPlaying.gotCreditResponse = false;
+
+            // When iframe loads, ping for credit capability.
+            frame.onload = () => {
+                try{
+                    frame.contentWindow?.postMessage({ type: "CRITSTRIKE_PING", gameId }, "*");
+                }catch(_) {}
+
+                if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+                currentPlaying.creditPingTimer = setTimeout(async () => {
+                    // If no response, classify as non-credit (only if not decided yet)
+                    if(!currentPlaying.gotCreditResponse && game.creditEligible === null){
+                        try{
+                            await FireDB.setGameCreditEligible(gameId, false);
+                            await loadGames();
+                        }catch(_) {}
+                    }
+                }, 2500);
+            };
+            
+            // Set iframe src to Storage URL directly
+            // Firebase Storage URLs have CORS enabled and are publicly readable
+            frame.src = indexUrl;
+            overlay.style.display = "block";
+        }
+    } catch(err) {
+        console.error("Error playing game:", err);
+        alert("Error loading game: " + err.message);
     }
 }
 
-function wireTabs(){
-    document.querySelectorAll('.tab-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            showTab(button.getAttribute('data-tab'));
-        });
-    });
-}
+// Game ↔ site credit messaging
+window.addEventListener("message", async (event) => {
+    const frame = document.getElementById("gameFrame");
+    if(!frame || event.source !== frame.contentWindow) return;
+    const msg = event.data || {};
+    if(!msg || typeof msg !== "object") return;
 
-async function initPage(){
-    loadUserUI();
-    wireTabs();
-    await resolveAdmin();
-    updateAddButton();
-    await loadGames();
-}
-
-window.addEventListener('storage', async (event) => {
-    if(event.key === 'userSync' || event.key === 'currentUser'){
-        currentUser = localStorage.getItem('currentUser');
-        currentUid = localStorage.getItem('currentUid');
-        loadUserUI();
-        await resolveAdmin();
-        updateAddButton();
-        await loadGames();
+    if(msg.type === "CRITSTRIKE_CREDIT_CAPABLE"){
+        currentPlaying.gotCreditResponse = true;
+        if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+        if(currentPlaying.gameId){
+            try{
+                await FireDB.setGameCreditEligible(currentPlaying.gameId, true);
+                await loadGames();
+            }catch(_) {}
+        }
     }
-    if(event.key === 'gamesSync'){
-        await loadGames();
+
+    if(msg.type === "CRITSTRIKE_CREDIT_AWARD"){
+        currentPlaying.gotCreditResponse = true;
+        if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+
+        const amount = parseInt(msg.amount, 10);
+        if(!currentUid || !currentUser || !Number.isFinite(amount) || amount <= 0) return;
+
+        try{
+            if(FireDB.incrementTokens) await FireDB.incrementTokens(currentUid, amount);
+        }catch(_) {}
+
+        const key = currentUser + "_tokens";
+        const current = parseInt(localStorage.getItem(key), 10) || 0;
+        localStorage.setItem(key, String(current + amount));
+        localStorage.setItem("tokenSync", Date.now());
+        loadTokens();
+
+        if(window.CritAnimations?.showToast) CritAnimations.showToast(`+${amount} 🪙`);
+        if(window.CritAnimations?.createConfetti) CritAnimations.createConfetti();
     }
 });
 
-window.addEventListener('DOMContentLoaded', initPage);
+// Legacy support for index.html deep-links (?play=slot_index)
+async function playGame(slotIndex){
+    const raw = (games || []).find(g => g.slot_index === slotIndex);
+    if(!raw) return alert("Game not found");
+    return playGameById(raw.id);
+}
+
+function closeGame(){
+    const overlay = document.getElementById("gameOverlay");
+    const frame = document.getElementById("gameFrame");
+
+    if(overlay) overlay.style.display = "none";
+    if(frame) {
+        frame.onload = null;
+        frame.src = "";
+    }
+    currentPlaying.gameId = null;
+    currentPlaying.gotCreditResponse = false;
+    if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+}
+
+/* =========================
+   INIT
+========================= */
+document.addEventListener("DOMContentLoaded", ()=>{
+    loadUserUI();
+    loadTokens();
+    // Quick client-side show if localStorage indicates Game_Master (fast feedback)
+    const addBtn = document.getElementById("addGameBtn");
+    if(addBtn && localStorage.getItem("currentUser") === "Game_Master"){
+        addBtn.style.display = "flex";
+        addBtn.onclick = openAddGame;
+    }
+
+    resolveAdmin().then(async () => {
+        // After server verification, ensure button visibility is correct
+        if(isAdminUser && addBtn){
+            addBtn.style.display = "flex";
+            addBtn.onclick = openAddGame;
+        } else if(addBtn && !isAdminUser) {
+            addBtn.style.display = "none";
+        }
+        await loadGames();
+        renderGamesByTab();
+
+        const params = new URLSearchParams(window.location.search);
+        const playId = params.get("playId");
+        if(playId){
+            playGameById(playId);
+            return;
+        }
+        const playSlot = params.get("play");
+        if(playSlot !== null && playSlot !== ""){
+            const idx = parseInt(playSlot, 10);
+            if(!Number.isNaN(idx)) {
+                playGame(idx);
+            }
+        }
+    });
+
+    // Sync on storage changes
+    window.addEventListener("storage", (e)=>{
+        if(e.key === "gamesSync"){
+            loadGames();
+        }
+        if(e.key === "userSync"){
+            location.reload();
+        }
+        if(e.key === "theme"){
+            applyTheme();
+        }
+    });
+});
+
 </script>
 
 </body>
