@@ -50,25 +50,27 @@ const isDefaultConfig = !firebaseConfig.apiKey ||
 if (isDefaultConfig) {
   console.warn("Firebase not configured! Edit firebase-config.js with your Firebase project values.");
 
-  // Create stub to prevent crashes
-  window.FireDB = {
-    async createUser() { throw new Error("Firebase not configured. Edit firebase-config.js"); },
-    async login() { throw new Error("Firebase not configured. Edit firebase-config.js"); },
-    async logout() {},
-    async getUserData() { return null; },
-    async updateTokens() {},
-    onAuthChange() {},
-    async getSiteSettings() { return { title: "Home", logo: "https://via.placeholder.com/200", updates: "- Configure Firebase", slogan: "Play. Learn. Repeat" }; },
-    async saveSiteSettings() { throw new Error("Firebase not configured"); },
-    async getGames() { return []; },
-    async saveGame() { throw new Error("Firebase not configured"); },
-    async deleteGame() { throw new Error("Firebase not configured"); },
-    async incrementPlayCount() {},
-    async getPlaylist() { return []; },
-    async uploadMusic() { throw new Error("Firebase not configured"); },
-    async deleteMusic() { throw new Error("Firebase not configured"); },
-    async clearAllMusic() { throw new Error("Firebase not configured"); }
-  };
+  // Create stub to prevent crashes, but only if no other DB adapter exists
+  if (!window.FireDB) {
+    window.FireDB = {
+      async createUser() { throw new Error("Firebase not configured. Edit firebase-config.js"); },
+      async login() { throw new Error("Firebase not configured. Edit firebase-config.js"); },
+      async logout() {},
+      async getUserData() { return null; },
+      async updateTokens() {},
+      onAuthChange() {},
+      async getSiteSettings() { return { title: "Home", logo: "https://via.placeholder.com/200", updates: "- Configure Firebase", slogan: "Play. Learn. Repeat" }; },
+      async saveSiteSettings() { throw new Error("Firebase not configured"); },
+      async getGames() { return []; },
+      async saveGame() { throw new Error("Firebase not configured"); },
+      async deleteGame() { throw new Error("Firebase not configured"); },
+      async incrementPlayCount() {},
+      async getPlaylist() { return []; },
+      async uploadMusic() { throw new Error("Firebase not configured"); },
+      async deleteMusic() { throw new Error("Firebase not configured"); },
+      async clearAllMusic() { throw new Error("Firebase not configured"); }
+    };
+  }
 } else {
   // Initialize Firebase (avoid double-init)
   if (!firebase.apps || firebase.apps.length === 0) {
@@ -80,15 +82,15 @@ if (isDefaultConfig) {
   const auth = firebase.auth();
   const storage = firebase.storage();
 
-  // Make globally available
-  window.db = db;
-  window.auth = auth;
-  window.storage = storage;
+    // Make globally available (but avoid clobbering an existing adapter)
+    window.db = db;
+    window.auth = auth;
+    window.storage = storage;
 
-  /* =========================
-     FIRESTORE DATA HELPERS
-  ========================= */
-  window.FireDB = {
+    /* =========================
+      FIRESTORE DATA HELPERS
+    ========================= */
+    const _fireDB = {
     // Collection references
     users: () => db.collection('users'),
     games: () => db.collection('games'),
@@ -507,5 +509,16 @@ if (isDefaultConfig) {
       await batch.commit();
     }
   };
+
+  // Prefer an existing DB adapter (server-side SQLite API). Only install
+  // the Firebase FireDB adapter if none exists to preserve admin upload
+  // and publish behavior when running against the server API.
+  if (!window.FireDB) {
+    window.FireDB = _fireDB;
+  } else {
+    // Expose storage and db objects for pages that may still use Firebase
+    // features directly without replacing the preferred DB adapter.
+    window._firebase = { db, auth, storage };
+  }
 }
 } // End server-side guard (typeof window check)
