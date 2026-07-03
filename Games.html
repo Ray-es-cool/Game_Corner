@@ -854,6 +854,26 @@ document.addEventListener("DOMContentLoaded", ()=>{
             addBtn.style.display = "none";
         }
         await loadGames();
+
+        // Inject a local Minesweeper game (non-credit) so it's available without FireDB
+        (function(){
+            try{
+                if(!games.find(g => g && g.id === 'minesweeper-local')){
+                    games.push({
+                        id: 'minesweeper-local',
+                        name: 'Minesweeper (Non-credit)',
+                        thumbnail: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRx5V5Q-U8GOrwdIH2TdFHe_B57Zvij7Fz5v7R3bJ-hUw&s=10',
+                        published: true,
+                        plays_week: 0,
+                        plays_total: 0,
+                        credit_eligible: false,
+                        entry_key: 'index.html',
+                        game_files: { 'index.html': 'Minesweeper.html' }
+                    });
+                }
+            }catch(e){console.warn('inject local game failed', e)}
+        })();
+
         renderGamesByTab();
 
         const params = new URLSearchParams(window.location.search);

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Minesweeper</title>
+<style>
+:root{--bg:#0b1020;--panel:#0f1724;--tile:#1b2434;--text:#e6eef8;--accent:#e06b2d}
+body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);display:flex;align-items:center;justify-content:center;height:100vh}
+.container{background:var(--panel);padding:18px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.6);width:fit-content}
+.header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.header h1{font-size:18px;margin:0}
+.controls{display:flex;gap:8px}
+.btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;background:var(--accent);color:white}
+.board{display:grid;gap:6px;background:transparent;padding:6px;border-radius:8px}
+.tile{width:36px;height:36px;background:var(--tile);display:flex;align-items:center;justify-content:center;border-radius:6px;user-select:none;font-weight:700;cursor:pointer}
+.tile.revealed{background:#e6eef8;color:#0b1020;cursor:default}
+.tile.flag{background:#2b3a4a;color:#ffdd00}
+.info{margin-top:8px;font-size:13px;opacity:0.85}
+.footer{margin-top:10px;text-align:center;font-size:13px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Minesweeper</h1>
+    <div class="controls">
+      <button class="btn" id="newBtn">New</button>
+      <select id="sizeSel">
+        <option value="8">8 × 8 (10 mines)</option>
+        <option value="10">10 × 10 (15 mines)</option>
+        <option value="12">12 × 12 (25 mines)</option>
+      </select>
+    </div>
+  </div>
+  <div id="board" class="board" style="grid-template-columns:repeat(8,36px)"></div>
+  <div class="info" id="status">Click a tile to reveal. Right-click to flag.</div>
+  <div class="footer">Non-credit game — no tokens awarded.</div>
+</div>
+
+<script>
+(function(){
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const newBtn = document.getElementById('newBtn');
+  const sizeSel = document.getElementById('sizeSel');
+
+  let rows=8, cols=8, mines=10, grid=[], started=false, revealed=0, totalCells=0, flagged=0, gameOver=false;
+
+  function setDifficultyFromSize(sz){
+    rows = cols = parseInt(sz,10);
+    if(rows===8) mines=10; else if(rows===10) mines=15; else mines=25;
+    totalCells = rows*cols;
+    boardEl.style.gridTemplateColumns = `repeat(${cols},36px)`;
+  }
+
+  function makeGrid(){
+    grid = Array(rows).fill(0).map(()=>Array(cols).fill({mine:false,count:0,revealed:false,flagged:false}));
+    // make as simple objects
+    for(let r=0;r<rows;r++){
+      grid[r]=[];
+      for(let c=0;c<cols;c++) grid[r].push({mine:false,count:0,revealed:false,flagged:false});
+    }
+  }
+
+  function placeMines(seedR,seedC){
+    let toPlace=mines;
+    while(toPlace>0){
+      const r=Math.floor(Math.random()*rows);
+      const c=Math.floor(Math.random()*cols);
+      if(r===seedR && c===seedC) continue; // avoid first-click death
+      if(!grid[r][c].mine){ grid[r][c].mine=true; toPlace--; }
+    }
+    // counts
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        if(grid[r][c].mine) continue;
+        let count=0;
+        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+          const nr=r+dr, nc=c+dc;
+          if(nr<0||nc<0||nr>=rows||nc>=cols) continue;
+          if(grid[nr][nc].mine) count++;
+        }
+        grid[r][c].count=count;
+      }
+    }
+  }
+
+  function render(){
+    boardEl.innerHTML='';
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const cell=grid[r][c];
+        const el=document.createElement('div');
+        el.className='tile' + (cell.revealed? ' revealed':'' ) + (cell.flagged? ' flag':'');
+        el.dataset.r=r; el.dataset.c=c;
+        if(cell.revealed){
+          el.textContent = cell.mine ? '💣' : (cell.count>0?cell.count:'');
+        } else if(cell.flagged){ el.textContent='🚩'; }
+        el.oncontextmenu = (e)=>{ e.preventDefault(); toggleFlag(r,c); };
+        el.onclick = ()=>{ handleClick(r,c); };
+        boardEl.appendChild(el);
+      }
+    }
+  }
+
+  function revealCell(r,c){
+    const cell=grid[r][c];
+    if(cell.revealed || cell.flagged) return;
+    cell.revealed=true; revealed++;
+    if(cell.mine){ gameLost(); return; }
+    if(cell.count===0){
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        const nr=r+dr, nc=c+dc;
+        if(nr<0||nc<0||nr>=rows||nc>=cols) continue;
+        if(!grid[nr][nc].revealed) revealCell(nr,nc);
+      }
+    }
+  }
+
+  function toggleFlag(r,c){
+    if(gameOver) return;
+    const cell=grid[r][c];
+    if(cell.revealed) return;
+    cell.flagged = !cell.flagged;
+    flagged += cell.flagged ? 1 : -1;
+    render();
+    updateStatus();
+  }
+
+  function handleClick(r,c){
+    if(gameOver) return;
+    if(!started){ started=true; placeMines(r,c); }
+    revealCell(r,c);
+    render();
+    checkWin();
+    updateStatus();
+  }
+
+  function checkWin(){
+    if(revealed>0 && (totalCells - revealed) === mines){
+      gameOver=true; render(); statusEl.textContent='You win!';
+    }
+  }
+
+  function gameLost(){
+    gameOver=true; // reveal all
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++) grid[r][c].revealed=true;
+    render(); statusEl.textContent='Boom! You hit a mine.';
+  }
+
+  function updateStatus(){
+    if(gameOver) return;
+    statusEl.textContent = `Mines: ${mines} • Flags: ${flagged} • Revealed: ${revealed}`;
+  }
+
+  function newGame(){
+    started=false; revealed=0; flagged=0; gameOver=false; makeGrid(); updateStatus(); render();
+  }
+
+  newBtn.onclick = ()=> newGame();
+  sizeSel.onchange = ()=>{ setDifficultyFromSize(sizeSel.value); newGame(); };
+
+  // init
+  setDifficultyFromSize(sizeSel.value);
+  makeGrid(); render(); updateStatus();
+
+  // provide simple postMessage support for credit ping (respond negative)
+  window.addEventListener('message', (ev)=>{
+    try{
+      const msg = ev.data || {};
+      if(msg && msg.type === 'CRITSTRIKE_PING'){
+        // reply that we are NOT credit-capable
+        ev.source.postMessage({ type: 'CRITSTRIKE_CREDIT_CAPABLE', capable: false }, ev.origin || '*');
+      }
+    }catch(e){}
+  });
+
+})();
+</script>
+</body>
+</html>
