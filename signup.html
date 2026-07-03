@@ -5,7 +5,8 @@
 <title>Signup</title>
 
 <!-- SQLite Database Client -->
-<script src="sqlite-db.js"></script>
+<script src="sqlite-db.js?v=4"></script>
+<script src="shared-state.js?v=4"></script>
 
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
@@ -291,10 +292,7 @@ try{
 const result = await FireDB.createUser(u, p, pfp);
 
 if(result){
-localStorage.setItem("currentUser", result.username);
-localStorage.setItem("currentUid", result.uid);
-localStorage.setItem(result.username+"_tokens", 0);
-localStorage.setItem("userSync", Date.now());
+await SharedState.userLogin(result.username, result.uid, 0);
 location.href="index.html";
 }else{
 document.getElementById("msg").innerText = "Signup failed";

@@ -5,10 +5,9 @@
 <title>Games</title>
 
 <!-- SQLite Database Client -->
-<script src="sqlite-db.js?v=3"></script>
-
-<!-- Shared State - Hive Mind -->
-<script src="shared-state.js?v=3"></script>
+<script src="sqlite-db.js?v=4"></script>
+<script src="shared-state.js?v=4"></script>
+<script src="app.js?v=4"></script>
 
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
@@ -541,7 +540,10 @@ function showTab(tab){
    ADMIN: CREATE GAME
 ========================= */
 function openAddGame(){
-    if(!isAdminUser) return;
+    if(!SharedState.isGameMaster()){
+        alert("Log in as Game_Master to add games.");
+        return;
+    }
     document.getElementById("addGameModal").style.display = "block";
 }
 function closeAddGame(){

@@ -2,12 +2,16 @@ services:
   - type: web
     name: critstrike-game-server
     env: node
-    buildCommand: npm install && rm -rf node_modules/.cache && ls -la
+    buildCommand: npm install
     startCommand: node server.js
+    disk:
+      name: critstrike-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
-      - key: FORCE_REBUILD
-        value: "2026-07-02-admin-fix-v2"
+      - key: SQLITE_DB_PATH
+        value: /var/data/critstrike.db
+      - key: GAME_MASTER_PASSWORD
+        value: master123

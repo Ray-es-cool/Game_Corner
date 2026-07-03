@@ -1,95 +1,80 @@
 /* =========================
-   SQLITE CLIENT MODULE
-   CritStrike Database API Client
+   API CLIENT — talks to CritStrike server
 ========================= */
 
 const API_URL = window.location.origin;
-console.log('[SQLiteDB] API URL:', API_URL);
+
+function currentUser() {
+  return localStorage.getItem("currentUser") || "";
+}
 
 function adminHeaders() {
-  const username = localStorage.getItem('currentUser');
-  const headers = { 'Content-Type': 'application/json' };
-  if (username) headers['X-Username'] = username;
+  const headers = { "Content-Type": "application/json" };
+  const user = currentUser();
+  if (user) headers["X-Username"] = user;
   return headers;
 }
 
-function currentAdminName() {
-  return localStorage.getItem('currentUser') || '';
+async function api(method, url, body) {
+  const opts = { method, headers: body ? adminHeaders() : { Accept: "application/json" } };
+  if (body) opts.body = JSON.stringify(body);
+
+  let res;
+  try {
+    res = await fetch(API_URL + url, opts);
+  } catch {
+    throw new Error("Cannot connect to server. It may still be starting up.");
+  }
+
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("Server returned an invalid response. Try refreshing the page.");
+  }
+
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  return data;
 }
 
 window.SQLiteDB = {
-  // USERS
   async createUser(username, password, pfp) {
-    const res = await fetch(`${API_URL}/api/users/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, pfp })
-    });
-    const result = await res.json();
-    if (result.success) {
-      return { uid: result.uid, username: result.username };
-    }
-    throw new Error(result.error || 'Signup failed');
+    const r = await api("POST", "/api/users/signup", { username, password, pfp });
+    return { uid: r.uid, username: r.username };
   },
 
   async login(username, password) {
-    const res = await fetch(`${API_URL}/api/users/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const result = await res.json();
-    if (result.success) {
-      return {
-        uid: result.uid,
-        username: result.username,
-        tokens: result.tokens,
-        pfp: result.pfp
-      };
-    }
-    // Throw the actual error message from server
-    throw new Error(result.error || 'Invalid credentials');
+    const r = await api("POST", "/api/users/login", { username, password });
+    return { uid: r.uid, username: r.username, tokens: r.tokens, pfp: r.pfp };
   },
 
-  async logout() {
-    // No-op for sessionless auth
-  },
+  async logout() {},
 
   async getUserByUid(uid) {
-    const res = await fetch(`${API_URL}/api/users/uid/${uid}`);
-    const result = await res.json();
-    if (result.success) return result;
-    return null;
+    try {
+      return await api("GET", `/api/users/uid/${uid}`);
+    } catch {
+      return null;
+    }
   },
 
   async getUserData(uid) {
-    // Need to fetch by username since API uses username
-    const res = await fetch(`${API_URL}/api/users/uid/${uid}`);
-    const result = await res.json();
-    if (result.success) return result;
-    return null;
+    return this.getUserByUid(uid);
   },
 
   async updateTokens(uid, tokens) {
-    // First get username from uid
     const user = await this.getUserByUid(uid);
-    if (!user) throw new Error('User not found');
-
-    const res = await fetch(`${API_URL}/api/users/${user.username}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tokens })
-    });
-    const result = await res.json();
-    if (!result.success) throw new Error(result.error || 'Failed to update tokens');
+    if (!user) throw new Error("User not found");
+    await api("POST", `/api/users/${user.username}`, { tokens });
   },
 
   async incrementTokens(uid, delta) {
     const user = await this.getUserByUid(uid);
-    if (!user) throw new Error('User not found');
-
-    const newTokens = (user.tokens || 0) + delta;
-    await this.updateTokens(uid, newTokens);
+    if (!user) return;
+    await this.updateTokens(uid, (user.tokens || 0) + delta);
   },
 
   async getUserThemes(uid) {
@@ -97,231 +82,87 @@ window.SQLiteDB = {
     return user?.themes || [];
   },
 
-  async addUserTheme(uid, themeName) {
-    const themes = await this.getUserThemes(uid);
-    if (!themes.includes(themeName)) {
-      themes.push(themeName);
-      // Would need update endpoint
-    }
-  },
-
-  async getUserInventory(uid) {
-    const user = await this.getUserByUid(uid);
-    return user?.inventory || [];
-  },
-
-  async addToInventory(uid, item) {
-    // Would need update endpoint
-  },
-
-  onAuthChange(callback) {
-    // No real-time auth for SQLite - call once on load
-    const currentUser = localStorage.getItem('currentUser');
-    if (currentUser) {
-      callback({ username: currentUser });
-    } else {
-      callback(null);
-    }
-  },
-
-  // SITE SETTINGS
   async getSiteSettings() {
-    const res = await fetch(`${API_URL}/api/site-settings`);
-    const result = await res.json();
-    if (result.success) {
-      return result.settings;
+    try {
+      const r = await api("GET", "/api/site-settings");
+      return r.settings;
+    } catch {
+      return {
+        title: "Crit Strike",
+        logo: "https://via.placeholder.com/200",
+        updates: "- Welcome",
+        slogan: "Play. Learn. Repeat"
+      };
     }
-    return {
-      title: 'Home',
-      logo: 'https://via.placeholder.com/200',
-      updates: '- Ready',
-      slogan: 'Play. Learn. Repeat'
-    };
   },
 
   async saveSiteSettings(settings) {
-    const res = await fetch(`${API_URL}/api/site-settings`, {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ ...settings, adminUsername: currentAdminName() })
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to save settings');
-    }
+    await api("POST", "/api/site-settings", { ...settings, adminUsername: currentUser() });
   },
 
-  // GAMES
   async getGames(publishedOnly = false) {
-    const url = publishedOnly
-      ? `${API_URL}/api/games?published=true`
-      : `${API_URL}/api/games`;
-    const res = await fetch(url);
-    const result = await res.json();
-    if (result.success) {
-      return result.games;
+    try {
+      const r = await api("GET", publishedOnly ? "/api/games?published=true" : "/api/games");
+      return r.games || [];
+    } catch {
+      return [];
     }
-    return [];
-  },
-
-  async saveGame(slotIndex, gameData) {
-    const res = await fetch(`${API_URL}/api/games`, {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ slotIndex, gameData, adminUsername: currentAdminName() })
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error('Failed to save game');
-    }
-    return result.id;
   },
 
   async createGame(gameData) {
-    const res = await fetch(`${API_URL}/api/games`, {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ gameData, adminUsername: currentAdminName() })
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create game');
-    }
-    return result.id;
+    const r = await api("POST", "/api/games", { gameData, adminUsername: currentUser() });
+    return r.id;
   },
 
   async updateGameById(gameId, patch) {
-    const res = await fetch(`${API_URL}/api/games/${gameId}`, {
-      method: 'PUT',
-      headers: adminHeaders(),
-      body: JSON.stringify({ ...patch, adminUsername: currentAdminName() })
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update game');
-    }
+    await api("PUT", `/api/games/${gameId}`, { ...patch, adminUsername: currentUser() });
   },
 
   async getGameById(gameId) {
-    const res = await fetch(`${API_URL}/api/games/${gameId}`);
-    const result = await res.json();
-    if (result.success) {
-      return result.game || result.data;
+    try {
+      const r = await api("GET", `/api/games/${gameId}`);
+      return r.game;
+    } catch {
+      return null;
     }
-    return null;
   },
 
   async deleteGameById(gameId) {
-    const res = await fetch(`${API_URL}/api/games/${gameId}`, {
-      method: 'DELETE',
-      headers: adminHeaders()
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to delete game');
+    let res;
+    try {
+      res = await fetch(`${API_URL}/api/games/${gameId}`, { method: "DELETE", headers: adminHeaders() });
+    } catch {
+      throw new Error("Cannot connect to server");
     }
-  },
-
-  async deleteGame(slotIndex) {
-    // Delete by slot index - would need dedicated endpoint
-    // For now, fetch games and find the ID
-    const games = await this.getGames();
-    const game = games.find(g => g.slot_index === slotIndex);
-    if (game?.id) {
-      await this.deleteGameById(game.id);
-    }
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || "Failed to delete game");
   },
 
   async incrementPlayCountById(gameId) {
-    const res = await fetch(`${API_URL}/api/games/${gameId}/play`, {
-      method: 'POST'
-    });
-    const result = await res.json();
-    if (!result.success) {
-      console.error('Failed to increment play count');
+    try {
+      await api("POST", `/api/games/${gameId}/play`);
+    } catch (e) {
+      console.warn("Play count failed:", e.message);
     }
   },
 
-  async incrementPlayCount(slotIndex) {
-    const games = await this.getGames();
-    const game = games.find(g => g.slot_index === slotIndex);
-    if (game?.id) {
-      await this.incrementPlayCountById(game.id);
-    }
-  },
-
-  async setGameCreditEligible(gameId, eligible) {
-    const res = await fetch(`${API_URL}/api/games/${gameId}/credit`, {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ eligible })
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error('Failed to set credit eligibility');
+  async getPlaylist() {
+    try {
+      const r = await api("GET", "/api/music");
+      return r.playlist || [];
+    } catch {
+      return [];
     }
   },
 
   async ensureWeeklyReset() {
-    const res = await fetch(`${API_URL}/api/meta/weekly-reset`);
-    const result = await res.json();
-    if (result.success) {
-      return { didReset: result.didReset, weekKey: result.weekKey };
-    }
-    return { didReset: false, weekKey: null };
-  },
-
-  // MUSIC
-  async getPlaylist() {
-    const res = await fetch(`${API_URL}/api/music`);
-    const result = await res.json();
-    if (result.success) {
-      return result.playlist;
-    }
-    return [];
-  },
-
-  async getNextOrderIndex() {
-    const playlist = await this.getPlaylist();
-    if (playlist.length === 0) return 0;
-    return Math.max(...playlist.map(m => m.order_index || 0)) + 1;
-  },
-
-  async uploadMusic(name, fileData, fileType) {
-    const res = await fetch(`${API_URL}/api/music`, {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ name, fileData, fileType })
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error('Failed to upload music');
-    }
-    return result.id;
-  },
-
-  async deleteMusic(musicId) {
-    const res = await fetch(`${API_URL}/api/music/${musicId}`, {
-      method: 'DELETE',
-      headers: adminHeaders()
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error('Failed to delete music');
-    }
-  },
-
-  async clearAllMusic() {
-    const res = await fetch(`${API_URL}/api/music`, {
-      method: 'DELETE',
-      headers: adminHeaders()
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error('Failed to clear music');
+    try {
+      const r = await api("GET", "/api/meta/weekly-reset");
+      return { didReset: r.didReset, weekKey: r.weekKey };
+    } catch {
+      return { didReset: false, weekKey: null };
     }
   }
 };
 
-// Alias FireDB to SQLiteDB for backwards compatibility
 window.FireDB = window.SQLiteDB;

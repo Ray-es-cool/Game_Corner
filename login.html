@@ -6,7 +6,8 @@
   <title>Login</title>
 
   <!-- SQLite Database Client -->
-  <script src="sqlite-db.js"></script>
+  <script src="sqlite-db.js?v=4"></script>
+  <script src="shared-state.js?v=4"></script>
 
   <style>
     body{
@@ -180,10 +181,7 @@
           const result = await submitWithRetry(() => FireDB.login(user, pass));
 
           if(result){
-            localStorage.setItem("currentUser", result.username);
-            localStorage.setItem("currentUid", result.uid);
-            localStorage.setItem(result.username + "_tokens", result.tokens || 0);
-            localStorage.setItem("userSync", Date.now());
+            await SharedState.userLogin(result.username, result.uid, result.tokens || 0);
             window.location.href = "index.html";
           }
         } catch(err){
@@ -213,12 +211,8 @@
           const result = await submitWithRetry(() => FireDB.createUser(user, pass, "https://via.placeholder.com/40"));
 
           if(result){
-            // Auto-login after successful registration
             const loginResult = await FireDB.login(user, pass);
-            localStorage.setItem("currentUser", loginResult.username);
-            localStorage.setItem("currentUid", loginResult.uid);
-            localStorage.setItem(loginResult.username + "_tokens", loginResult.tokens || 0);
-            localStorage.setItem("userSync", Date.now());
+            await SharedState.userLogin(loginResult.username, loginResult.uid, loginResult.tokens || 0);
             window.location.href = "index.html";
           }
         } catch(err){
