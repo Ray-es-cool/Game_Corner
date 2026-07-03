@@ -12,10 +12,15 @@
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
 <script src="animations.js"></script>
+<!-- Central memories -->
+<script src="firebase-config.js"></script>
+<script src="global-memory.js"></script>
+<script src="user-memory.js"></script>
 
 <script>
 function applyTheme(){
-    let theme = localStorage.getItem("theme") || "dark";
+    // Prefer user-specific theme when available
+    let theme = (window.UserMemory && typeof UserMemory.getTheme === 'function') ? UserMemory.getTheme() : (localStorage.getItem("theme") || "dark");
     let root = document.documentElement;
 
     if(theme === "dark"){
@@ -45,7 +50,7 @@ function applyTheme(){
 applyTheme();
 
 window.addEventListener("storage", (e)=>{
-    if(e.key === "theme") applyTheme();
+    if(e.key === "theme" || e.key === 'userMemorySync') applyTheme();
 });
 </script>
 
@@ -346,7 +351,7 @@ async function saveSiteSettings(){
             slogan: document.getElementById("inlineSiteSlogan").value.trim() || "Play. Learn. Repeat"
         };
 
-        await FireDB.saveSiteSettings(settings);
+        await GlobalMemory.save(settings);
         SharedState.siteSettings = settings;
         localStorage.setItem("shared_site_settings", JSON.stringify(settings));
         SharedState.syncSiteSettings();
