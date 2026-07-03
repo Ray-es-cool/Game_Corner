@@ -334,8 +334,8 @@ body{
     <div class="game-grid" id="gameGrid"></div>
 </div>
 
-<!-- ADMIN: ADD GAME BUTTON (Big blue plus) -->
-<button id="addGameBtn" title="Add Game" aria-label="Add Game" style="display:none;position:fixed;right:20px;bottom:20px;width:72px;height:72px;border-radius:50%;border:none;background:var(--accent);color:white;font-size:44px;cursor:pointer;box-shadow:0 12px 36px rgba(0,0,0,0.35);z-index:1100;display:none;align-items:center;justify-content:center;">+</button>
+<!-- ADMIN: ADD GAME BUTTON (Big blue plus) - visible by default; hidden by JS for non-admins -->
+<button id="addGameBtn" title="Add Game" aria-label="Add Game" style="position:fixed;right:20px;bottom:20px;width:72px;height:72px;border-radius:50%;border:none;background:var(--accent);color:white;font-size:44px;cursor:pointer;box-shadow:0 12px 36px rgba(0,0,0,0.35);z-index:1100;display:flex;align-items:center;justify-content:center;">+</button>
 
 <!-- ADMIN: ADD GAME MODAL -->
 <div class="game-overlay" id="addGameModal" style="display:none;">
