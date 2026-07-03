@@ -326,6 +326,7 @@ body{
 
     <div class="tabs">
         <button class="tab-btn active" onclick="showTab('all')" id="tabAll">All</button>
+        <button class="tab-btn" onclick="showTab('recommended')" id="tabRecommended">Recommended</button>
         <button class="tab-btn" onclick="showTab('credit')" id="tabCredit">Credit Games</button>
         <button class="tab-btn" onclick="showTab('popular')" id="tabPopular">Most Popular</button>
         <button class="tab-btn" onclick="showTab('noncredit')" id="tabNonCredit">Non‑Credit Games</button>
@@ -494,6 +495,9 @@ function renderGamesByTab(){
     const publishedGames = isAdminUser ? normalized : normalized.filter(g => g.published);
     let list = publishedGames;
 
+    if(activeTab === "recommended"){
+        list = publishedGames.filter(g => g.recommended === true);
+    }
     if(activeTab === "credit"){
         list = publishedGames.filter(g => g.creditEligible === true);
     }
@@ -553,6 +557,7 @@ function showTab(tab){
     activeTab = tab;
     document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
     if(tab === "all") document.getElementById("tabAll")?.classList.add("active");
+    if(tab === "recommended") document.getElementById("tabRecommended")?.classList.add("active");
     if(tab === "credit") document.getElementById("tabCredit")?.classList.add("active");
     if(tab === "popular") document.getElementById("tabPopular")?.classList.add("active");
     if(tab === "noncredit") document.getElementById("tabNonCredit")?.classList.add("active");
@@ -867,6 +872,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
                         plays_week: 0,
                         plays_total: 0,
                         credit_eligible: false,
+                        recommended: true,
                         entry_key: 'index.html',
                         game_files: { 'index.html': 'Minesweeper.html' }
                     });
