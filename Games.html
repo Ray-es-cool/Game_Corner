@@ -5,10 +5,10 @@
 <title>Games</title>
 
 <!-- SQLite Database Client -->
-<script src="sqlite-db.js"></script>
+<script src="sqlite-db.js?v=3"></script>
 
 <!-- Shared State - Hive Mind -->
-<script src="shared-state.js"></script>
+<script src="shared-state.js?v=3"></script>
 
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
@@ -428,16 +428,15 @@ function loadTokens(){
 }
 
 async function resolveAdmin(){
-    isAdminUser = false;
-    if(!SharedState.currentUser) return false;
+    isAdminUser = SharedState.isGameMaster();
+    if(!isAdminUser || !SharedState.currentUid) return false;
     try{
         const data = await FireDB.getUserData(SharedState.currentUid);
-        isAdminUser = (data?.username === "Game_Master" && SharedState.currentUser === "Game_Master");
-        return isAdminUser;
+        isAdminUser = String(data?.username || "").trim().toLowerCase() === "game_master";
     }catch(e){
-        isAdminUser = (SharedState.currentUser === "Game_Master");
-        return isAdminUser;
+        isAdminUser = SharedState.isGameMaster();
     }
+    return isAdminUser;
 }
 
 /* =========================
@@ -496,12 +495,14 @@ function renderGamesByTab(){
         const canPlay = !!SharedState.currentUser;
         const creditLabel = game.creditEligible === true ? "🪙 Credit" : (game.creditEligible === false ? "🚫 Non‑credit" : "❓ Auto");
         const playsLabel = `▶ ${game.playsWeek} this week • ${game.playsTotal} total`;
+        const draftLabel = !game.published ? `<p style="margin:6px 0;color:#fbbf24;">Draft (not published)</p>` : "";
 
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
             <img src="${game.thumbnail}" alt="${game.name}">
             <h3>${game.name}</h3>
+            ${draftLabel}
             <p style="margin:6px 0;opacity:0.85;">${creditLabel}</p>
             <p style="margin:6px 0;opacity:0.7;">${playsLabel}</p>
             <button onclick="playGameById('${game.id}')" ${canPlay ? "" : "disabled"}>
@@ -510,8 +511,10 @@ function renderGamesByTab(){
         `;
 
         if(isAdminUser){
+            const pubLabel = game.published ? "Unpublish" : "Publish";
             card.innerHTML += `
                 <div class="admin-panel">
+                    <button onclick="togglePublishById('${game.id}', ${game.published})" style="width:100%;margin-bottom:8px;">${pubLabel}</button>
                     <button class="delete-btn" onclick="deleteGameById('${game.id}')" style="width:100%;">Delete</button>
                 </div>
             `;
@@ -547,8 +550,8 @@ function closeAddGame(){
 }
 
 async function createGameFromModal(){
-    if(!isAdminUser){
-        alert("Only Game_Master can add games");
+    if(!isAdminUser && !SharedState.isGameMaster()){
+        alert("Only Game_Master can add games. Log in as Game_Master first.");
         return;
     }
 
@@ -603,7 +606,8 @@ async function createGameFromModal(){
         SharedState.syncGames();
         loadGames();
     }catch(err){
-        alert("Create error: " + err.message);
+        console.error("Create game error:", err);
+        alert("Create error: " + (err.message || "Failed to create game") + "\n\nMake sure you are logged in as Game_Master.");
     }
 }
 
@@ -757,7 +761,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     await resolveAdmin();
 
     const addBtn = document.getElementById("addGameBtn");
-    if(isAdminUser && addBtn){
+    if((isAdminUser || SharedState.isGameMaster()) && addBtn){
         addBtn.style.display = "block";
         addBtn.onclick = openAddGame;
     }

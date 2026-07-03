@@ -54,12 +54,21 @@ async function startServer() {
     next();
   });
 
-  // STATIC FILES - Optimized with aggressive caching
+  // STATIC FILES - HTML/JS must not be long-cached (so deploys show up immediately)
+  app.use((req, res, next) => {
+    if (/\.(html|js)$/i.test(req.path) || req.path === "/") {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+    next();
+  });
+
   app.use(express.static(path.join(__dirname), {
-    maxAge: '30d', // Cache static assets for 30 days (was 1 day)
+    maxAge: "1d",
     etag: true,
     lastModified: true,
-    immutable: true, // Tell browser files won't change
+    immutable: false,
     fallthrough: true
   }));
 
@@ -135,20 +144,30 @@ async function startServer() {
   // =========================
 
   // Game_Master admin verification middleware
+  function isGameMasterName(name) {
+    return String(name || "").trim().toLowerCase() === "game_master";
+  }
+
   async function requireGameMaster(req, res, next) {
     try {
-      const username = req.headers['x-username'] || req.body?.adminUsername;
-      if (!username || username !== 'Game_Master') {
-        return res.status(403).json({ success: false, error: 'Game_Master access required' });
+      const username = req.headers["x-username"] || req.body?.adminUsername;
+      if (!isGameMasterName(username)) {
+        return res.status(403).json({
+          success: false,
+          error: "Game_Master access required. Log in with the Game_Master account."
+        });
       }
-      const user = await db.getUserByUsername('Game_Master');
+      const user = await db.getGameMasterUser();
       if (!user) {
-        return res.status(403).json({ success: false, error: 'Game_Master account not found' });
+        return res.status(403).json({
+          success: false,
+          error: "Game_Master account not found. Sign up at /signup.html with username Game_Master."
+        });
       }
       next();
     } catch (err) {
-      console.error('Admin auth error:', err);
-      res.status(500).json({ success: false, error: 'Server error' });
+      console.error("Admin auth error:", err);
+      res.status(500).json({ success: false, error: "Server error" });
     }
   }
 
@@ -305,14 +324,17 @@ async function startServer() {
 
   app.post("/api/games", requireGameMaster, async (req, res) => {
     try {
-      const { slotIndex, gameData } = req.body;
+      const { slotIndex, gameData, adminUsername, ...rest } = req.body;
+      const payload = gameData || rest.gameData;
 
       if (slotIndex !== undefined) {
-        const id = await db.saveGame(slotIndex, gameData);
+        const id = await db.saveGame(slotIndex, payload);
+        res.json({ success: true, id });
+      } else if (payload) {
+        const id = await db.createGame(payload);
         res.json({ success: true, id });
       } else {
-        const id = await db.createGame(gameData);
-        res.json({ success: true, id });
+        res.status(400).json({ success: false, error: "Game data required" });
       }
     } catch (err) {
       console.error("Save game error:", err);
@@ -348,7 +370,7 @@ async function startServer() {
   app.put("/api/games/:id", requireGameMaster, async (req, res) => {
     try {
       const { id } = req.params;
-      const patch = req.body;
+      const { adminUsername, ...patch } = req.body;
       await db.updateGameById(id, patch);
       res.json({ success: true });
     } catch (err) {
@@ -439,7 +461,8 @@ async function startServer() {
 
   app.post("/api/site-settings", requireGameMaster, async (req, res) => {
     try {
-      await db.saveSiteSettings(req.body);
+      const { adminUsername, ...settings } = req.body;
+      await db.saveSiteSettings(settings);
       res.json({ success: true });
     } catch (err) {
       console.error("Save site settings error:", err);

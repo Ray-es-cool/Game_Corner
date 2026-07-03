@@ -13,6 +13,10 @@ function adminHeaders() {
   return headers;
 }
 
+function currentAdminName() {
+  return localStorage.getItem('currentUser') || '';
+}
+
 window.SQLiteDB = {
   // USERS
   async createUser(username, password, pfp) {
@@ -139,7 +143,7 @@ window.SQLiteDB = {
     const res = await fetch(`${API_URL}/api/site-settings`, {
       method: 'POST',
       headers: adminHeaders(),
-      body: JSON.stringify(settings)
+      body: JSON.stringify({ ...settings, adminUsername: currentAdminName() })
     });
     const result = await res.json();
     if (!result.success) {
@@ -164,7 +168,7 @@ window.SQLiteDB = {
     const res = await fetch(`${API_URL}/api/games`, {
       method: 'POST',
       headers: adminHeaders(),
-      body: JSON.stringify({ slotIndex, gameData })
+      body: JSON.stringify({ slotIndex, gameData, adminUsername: currentAdminName() })
     });
     const result = await res.json();
     if (!result.success) {
@@ -177,7 +181,7 @@ window.SQLiteDB = {
     const res = await fetch(`${API_URL}/api/games`, {
       method: 'POST',
       headers: adminHeaders(),
-      body: JSON.stringify({ gameData })
+      body: JSON.stringify({ gameData, adminUsername: currentAdminName() })
     });
     const result = await res.json();
     if (!result.success) {
@@ -190,7 +194,7 @@ window.SQLiteDB = {
     const res = await fetch(`${API_URL}/api/games/${gameId}`, {
       method: 'PUT',
       headers: adminHeaders(),
-      body: JSON.stringify(patch)
+      body: JSON.stringify({ ...patch, adminUsername: currentAdminName() })
     });
     const result = await res.json();
     if (!result.success) {
@@ -214,7 +218,7 @@ window.SQLiteDB = {
     });
     const result = await res.json();
     if (!result.success) {
-      throw new Error('Failed to delete game');
+      throw new Error(result.error || 'Failed to delete game');
     }
   },
 

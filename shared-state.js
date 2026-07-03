@@ -12,7 +12,7 @@ const SharedState = {
   siteSettings: {},
 
   isGameMaster() {
-    return this.currentUser === "Game_Master";
+    return String(this.currentUser || "").trim().toLowerCase() === "game_master";
   },
 
   // Initialize shared state

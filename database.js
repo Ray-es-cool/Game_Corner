@@ -189,6 +189,11 @@ module.exports = {
     return getRow(stmt, [username]);
   },
 
+  async getGameMasterUser() {
+    const stmt = db.prepare('SELECT * FROM users WHERE LOWER(username) = ?');
+    return getRow(stmt, ['game_master']);
+  },
+
   async getUserByUid(uid) {
     const stmt = db.prepare('SELECT * FROM users WHERE uid = ?');
     return getRow(stmt, [uid]);

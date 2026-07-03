@@ -5,10 +5,10 @@
 <title id="siteTitle">Home</title>
 
 <!-- SQLite Database Client -->
-<script src="sqlite-db.js"></script>
+<script src="sqlite-db.js?v=3"></script>
 
 <!-- Shared State - Hive Mind -->
-<script src="shared-state.js"></script>
+<script src="shared-state.js?v=3"></script>
 
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
@@ -93,8 +93,23 @@ box-shadow:0 0 15px rgba(59,130,246,0.2);
 .logo-box{height:220px;display:flex;align-items:center;justify-content:center;position:relative;}
 .logo-box img{width:180px;height:180px;border-radius:25px;background:var(--card);}
 .edit-site-btn{
-position:absolute;top:8px;right:8px;padding:6px 10px;font-size:12px;
-background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;display:none;
+padding:8px 14px;font-size:14px;
+background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;
+}
+.admin-site-panel{
+display:none;margin-top:16px;padding:16px;border-radius:14px;
+background:var(--card);border:2px solid var(--accent);text-align:left;
+}
+.admin-site-panel h3{margin:0 0 12px 0;font-size:16px;color:var(--accent);}
+.admin-site-panel label{display:block;margin-top:10px;font-size:13px;opacity:0.85;}
+.admin-site-panel input,.admin-site-panel textarea{
+width:100%;margin-top:4px;padding:10px;border:none;border-radius:8px;
+background:var(--panel);color:var(--text);box-sizing:border-box;
+}
+.admin-site-panel textarea{min-height:70px;resize:vertical;}
+.admin-save-btn{
+margin-top:14px;padding:12px;width:100%;border:none;border-radius:10px;
+background:var(--accent);color:white;cursor:pointer;font-size:15px;
 }
 .site-modal{
 display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;
@@ -167,12 +182,26 @@ font-size:30px;
 <div class="left">
 <div class="box logo-box">
 <img id="logoImg" src="https://via.placeholder.com/200">
-<button class="edit-site-btn" id="editSiteBtn" onclick="openSiteEditor()">Edit Site</button>
 </div>
 
 <div class="box">
 <h3>Updates</h3>
 <p id="updatesText">Loading...</p>
+</div>
+
+<div class="box admin-site-panel" id="adminSitePanel">
+<h3>Game_Master — Edit Home Page</h3>
+<label>Site Title</label>
+<input type="text" id="inlineSiteTitle" placeholder="Site title">
+<label>Logo (URL or upload)</label>
+<input type="text" id="inlineSiteLogo" placeholder="https://...">
+<input type="file" id="inlineSiteLogoFile" accept="image/*">
+<label>Updates</label>
+<textarea id="inlineSiteUpdates" placeholder="- New update here"></textarea>
+<label>Slogan</label>
+<input type="text" id="inlineSiteSlogan" placeholder="Play. Learn. Repeat">
+<button class="admin-save-btn" onclick="saveSiteSettings()">Save Home Page</button>
+<p id="siteEditMsg" style="font-size:13px;margin-top:8px;"></p>
 </div>
 </div>
 
@@ -194,26 +223,6 @@ font-size:30px;
 </div>
 
 <div class="token" id="tokens">🪙 0</div>
-
-<div class="site-modal" id="siteModal">
-<div class="site-modal-content">
-<h3>Edit Site (Game_Master)</h3>
-<label>Site Title</label>
-<input type="text" id="editTitle" placeholder="Site title">
-<label>Logo URL or upload image</label>
-<input type="text" id="editLogoUrl" placeholder="https://...">
-<input type="file" id="editLogoFile" accept="image/*">
-<label>Updates</label>
-<textarea id="editUpdates" placeholder="- New update here"></textarea>
-<label>Slogan</label>
-<input type="text" id="editSlogan" placeholder="Play. Learn. Repeat">
-<div class="site-modal-actions">
-<button class="cancel" onclick="closeSiteEditor()">Cancel</button>
-<button class="save" onclick="saveSiteSettings()">Save</button>
-</div>
-<p id="siteEditMsg" style="font-size:13px;margin-top:8px;"></p>
-</div>
-</div>
 
 <script>
 
@@ -287,25 +296,28 @@ function apply(d){
 }
 
 function setupSiteEditor(){
-    const btn = document.getElementById("editSiteBtn");
-    if(!btn) return;
-    btn.style.display = SharedState.isGameMaster() ? "block" : "none";
+    const panel = document.getElementById("adminSitePanel");
+    if(!panel) return;
+
+    if(!SharedState.isGameMaster()){
+        panel.style.display = "none";
+        return;
+    }
+
+    panel.style.display = "block";
+    const d = SharedState.siteSettings || {};
+    document.getElementById("inlineSiteTitle").value = d.title || "";
+    document.getElementById("inlineSiteLogo").value = (d.logo && !String(d.logo).startsWith("data:")) ? d.logo : "";
+    document.getElementById("inlineSiteUpdates").value = d.updates || "";
+    document.getElementById("inlineSiteSlogan").value = d.slogan || "";
 }
 
 function openSiteEditor(){
-    if(!SharedState.isGameMaster()) return;
-    const d = SharedState.siteSettings || {};
-    document.getElementById("editTitle").value = d.title || "";
-    document.getElementById("editLogoUrl").value = (d.logo && !d.logo.startsWith("data:")) ? d.logo : "";
-    document.getElementById("editUpdates").value = d.updates || "";
-    document.getElementById("editSlogan").value = d.slogan || "";
-    document.getElementById("siteEditMsg").innerText = "";
-    document.getElementById("siteModal").style.display = "flex";
+    setupSiteEditor();
+    document.getElementById("adminSitePanel")?.scrollIntoView({ behavior: "smooth" });
 }
 
-function closeSiteEditor(){
-    document.getElementById("siteModal").style.display = "none";
-}
+function closeSiteEditor(){}
 
 function readLogoFile(file){
     return new Promise((resolve, reject) => {
@@ -323,16 +335,16 @@ async function saveSiteSettings(){
     msg.style.color = "";
 
     try {
-        let logo = document.getElementById("editLogoUrl").value.trim();
-        const logoFile = document.getElementById("editLogoFile").files[0];
+        let logo = document.getElementById("inlineSiteLogo").value.trim();
+        const logoFile = document.getElementById("inlineSiteLogoFile").files[0];
         if(logoFile) logo = await readLogoFile(logoFile);
         if(!logo) logo = SharedState.siteSettings?.logo || "https://via.placeholder.com/200";
 
         const settings = {
-            title: document.getElementById("editTitle").value.trim() || "Crit Strike",
+            title: document.getElementById("inlineSiteTitle").value.trim() || "Crit Strike",
             logo,
-            updates: document.getElementById("editUpdates").value.trim() || "- Ready",
-            slogan: document.getElementById("editSlogan").value.trim() || "Play. Learn. Repeat"
+            updates: document.getElementById("inlineSiteUpdates").value.trim() || "- Ready",
+            slogan: document.getElementById("inlineSiteSlogan").value.trim() || "Play. Learn. Repeat"
         };
 
         await FireDB.saveSiteSettings(settings);
@@ -340,7 +352,8 @@ async function saveSiteSettings(){
         localStorage.setItem("shared_site_settings", JSON.stringify(settings));
         SharedState.syncSiteSettings();
         loadSite();
-        closeSiteEditor();
+        msg.innerText = "Home page saved!";
+        msg.style.color = "#22c55e";
         if(window.CritAnimations?.showToast) CritAnimations.showToast("Site updated");
     } catch(err) {
         msg.innerText = err.message || "Failed to save";
