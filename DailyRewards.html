@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <title>Daily Rewards</title>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="firebase-env.js"></script>
-<script src="firebase-config.js"></script>
+<!-- SQLite Database Client -->
+<script src="sqlite-db.js?v=4"></script>
+<script src="shared-state.js?v=4"></script>
+<script src="app.js?v=4"></script>
+
+<!-- Shared State - Hive Mind -->
+<script src="shared-state.js"></script>
 
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
@@ -197,10 +198,8 @@ body{
 <script>
 
 /* =========================
-   USER STATE
+   USER STATE (uses SharedState)
 ========================= */
-let currentUser = localStorage.getItem("currentUser");
-let currentUid = localStorage.getItem("currentUid");
 const COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
 
 /* =========================
@@ -210,9 +209,9 @@ function loadUserUI(){
     let box = document.getElementById("userBox");
     if(!box) return;
 
-    if(currentUser){
+    if(SharedState.currentUser){
         box.innerHTML = `
-            <span>${currentUser}</span>
+            <span>${SharedState.currentUser}</span>
             <button onclick="logoutUser()"
             style="padding:6px 10px;background:#ef4444;border:none;border-radius:6px;color:white;cursor:pointer;">
             Logout
@@ -224,59 +223,44 @@ function loadUserUI(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
 function loadTokens(){
     let el = document.getElementById("tokens");
-    if(!el || !currentUser) return;
-    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 /* =========================
-   REWARD SYSTEM
+   REWARD SYSTEM (uses SharedState)
 ========================= */
 async function claim(){
-    if(!currentUser){
+    if(!SharedState.currentUser){
         alert("Please login to claim rewards");
         window.location.href = "login.html";
         return;
     }
 
-    let last = localStorage.getItem(currentUser + "_lastClaim");
+    let last = localStorage.getItem(SharedState.currentUser + "_lastClaim");
 
     if(last && (Date.now() - parseInt(last)) < COOLDOWN){
         updateCooldown();
         return;
     }
 
-    // Update local tokens
-    let key = currentUser + "_tokens";
-    let current = parseInt(localStorage.getItem(key)) || 0;
-    current += 5;
-    localStorage.setItem(key, current);
-    localStorage.setItem(currentUser + "_lastClaim", Date.now());
-
-    // Sync to Firebase
-    if(currentUid){
-        await FireDB.updateTokens(currentUid, current);
-    }
+    // Add 5 tokens via SharedState (syncs everywhere)
+    await SharedState.addTokens(5);
+    localStorage.setItem(SharedState.currentUser + "_lastClaim", Date.now());
 
     document.getElementById("msg").innerText = "Reward claimed: +5 🪙";
     loadTokens();
     updateCooldown();
-
-    // Global sync
-    localStorage.setItem("tokenSync", Date.now());
 }
 
 function updateCooldown(){
-    if(!currentUser){
+    if(!SharedState.currentUser){
         const btn = document.getElementById("btn");
         const msg = document.getElementById("msg");
         if(btn) btn.disabled = true;
@@ -284,7 +268,7 @@ function updateCooldown(){
         return;
     }
 
-    let last = localStorage.getItem(currentUser + "_lastClaim");
+    let last = localStorage.getItem(SharedState.currentUser + "_lastClaim");
     const btn = document.getElementById("btn");
     const msg = document.getElementById("msg");
 
@@ -315,6 +299,7 @@ function updateCooldown(){
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", ()=>{
+    // SharedState already initialized
     loadUserUI();
     loadTokens();
     updateCooldown();
@@ -326,24 +311,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const btn = document.getElementById("btn");
     if(btn) btn.onclick = claim;
 
-    // Sync listener
+    // Sync listener - SharedState handles data, we refresh UI
     window.addEventListener("storage", (e)=>{
-        if(e.key === "currentUser"){
-            currentUser = localStorage.getItem("currentUser");
-            currentUid = localStorage.getItem("currentUid");
-            loadUserUI();
-            loadTokens();
-            updateCooldown();
-        }
-        if(e.key === "tokenSync"){
-            loadTokens();
-        }
-        if(e.key === "theme"){
-            applyTheme();
-        }
-        if(e.key && e.key.includes("_lastClaim")){
-            updateCooldown();
-        }
+        if(e.key === "tokenSync"){ loadTokens(); }
+        if(e.key === "theme"){ applyTheme(); }
+        if(e.key && e.key.includes("_lastClaim")){ updateCooldown(); }
     });
 });
 

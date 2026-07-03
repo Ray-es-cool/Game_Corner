@@ -4,12 +4,10 @@
 <meta charset="UTF-8">
 <title id="siteTitle">Home</title>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="firebase-env.js"></script>
-<script src="firebase-config.js"></script>
+<!-- SQLite Database Client -->
+<script src="sqlite-db.js?v=4"></script>
+<script src="shared-state.js?v=4"></script>
+<script src="app.js?v=4"></script>
 
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
@@ -91,8 +89,43 @@ padding:20px;
 box-shadow:0 0 15px rgba(59,130,246,0.2);
 }
 
-.logo-box{height:220px;display:flex;align-items:center;justify-content:center;}
+.logo-box{height:220px;display:flex;align-items:center;justify-content:center;position:relative;}
 .logo-box img{width:180px;height:180px;border-radius:25px;background:var(--card);}
+.edit-site-btn{
+padding:8px 14px;font-size:14px;
+background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;
+}
+.admin-site-panel{
+display:none;margin-top:16px;padding:16px;border-radius:14px;
+background:var(--card);border:2px solid var(--accent);text-align:left;
+}
+.admin-site-panel h3{margin:0 0 12px 0;font-size:16px;color:var(--accent);}
+.admin-site-panel label{display:block;margin-top:10px;font-size:13px;opacity:0.85;}
+.admin-site-panel input,.admin-site-panel textarea{
+width:100%;margin-top:4px;padding:10px;border:none;border-radius:8px;
+background:var(--panel);color:var(--text);box-sizing:border-box;
+}
+.admin-site-panel textarea{min-height:70px;resize:vertical;}
+.admin-save-btn{
+margin-top:14px;padding:12px;width:100%;border:none;border-radius:10px;
+background:var(--accent);color:white;cursor:pointer;font-size:15px;
+}
+.site-modal{
+display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;
+align-items:center;justify-content:center;
+}
+.site-modal-content{
+background:var(--panel);padding:24px;border-radius:16px;width:90%;max-width:420px;
+}
+.site-modal input,.site-modal textarea{
+width:100%;margin:8px 0;padding:10px;border:none;border-radius:8px;
+background:var(--card);color:var(--text);box-sizing:border-box;
+}
+.site-modal textarea{min-height:80px;resize:vertical;}
+.site-modal-actions{display:flex;gap:10px;margin-top:12px;}
+.site-modal-actions button{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;}
+.site-modal-actions .save{background:var(--accent);color:white;}
+.site-modal-actions .cancel{background:var(--card);color:var(--text);}
 
 .center{flex:1;}
 .title{text-align:center;font-size:50px;margin-bottom:10px;}
@@ -112,42 +145,6 @@ background:var(--card);
 padding:15px;
 border-radius:10px;
 text-align:center;
-}
-
-.admin{
-display:none;
-margin-top:20px;
-background:var(--card);
-padding:15px;
-border-radius:15px;
-}
-
-.admin input, .admin textarea{
-width:100%;
-padding:10px;
-margin:5px 0;
-border-radius:5px;
-border:none;
-background:var(--bg);
-color:var(--text);
-box-sizing:border-box;
-}
-
-.admin textarea{
-min-height:80px;
-resize:vertical;
-}
-
-.admin button{
-width:100%;
-padding:12px;
-border:none;
-border-radius:10px;
-background:var(--accent);
-color:white;
-cursor:pointer;
-margin-top:10px;
-font-size:16px;
 }
 
 .token{
@@ -190,6 +187,21 @@ font-size:30px;
 <h3>Updates</h3>
 <p id="updatesText">Loading...</p>
 </div>
+
+<div class="box admin-site-panel" id="adminSitePanel">
+<h3>Game_Master — Edit Home Page</h3>
+<label>Site Title</label>
+<input type="text" id="inlineSiteTitle" placeholder="Site title">
+<label>Logo (URL or upload)</label>
+<input type="text" id="inlineSiteLogo" placeholder="https://...">
+<input type="file" id="inlineSiteLogoFile" accept="image/*">
+<label>Updates</label>
+<textarea id="inlineSiteUpdates" placeholder="- New update here"></textarea>
+<label>Slogan</label>
+<input type="text" id="inlineSiteSlogan" placeholder="Play. Learn. Repeat">
+<button class="admin-save-btn" onclick="saveSiteSettings()">Save Home Page</button>
+<p id="siteEditMsg" style="font-size:13px;margin-top:8px;"></p>
+</div>
 </div>
 
 <div class="center">
@@ -204,19 +216,6 @@ font-size:30px;
 <!-- Games rendered here -->
 </div>
 
-<div class="admin" id="adminPanel">
-<h3>Admin Panel (Game_Master Only)</h3>
-<label>Site Title</label>
-<input id="titleInput" placeholder="Title">
-<label>Slogan</label>
-<input id="sloganInput" placeholder="Slogan">
-<label>Updates (HTML allowed)</label>
-<textarea id="updatesInput"></textarea>
-<label>Logo URL</label>
-<input id="logoInput" type="text" placeholder="https://...">
-<button onclick="save()">Save Site Settings</button>
-</div>
-
 </div>
 
 </div>
@@ -227,15 +226,12 @@ font-size:30px;
 <script>
 
 /* =========================
-   USER STATE
+   USER STATE (uses SharedState)
 ========================= */
-let currentUser = localStorage.getItem("currentUser");
-let currentUid = localStorage.getItem("currentUid");
-let isAdminUser = false;
-
 function loadUserUI(){
     let box = document.getElementById("userBox");
     let loginLink = document.getElementById("loginLink");
+    let currentUser = SharedState.currentUser;
 
     if(!box) return;
 
@@ -255,55 +251,28 @@ function loadUserUI(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
 function loadTokens(){
     let el = document.getElementById("tokens");
-    if(!el || !currentUser) return;
-    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
-}
-
-async function resolveAdmin(){
-    isAdminUser = false;
-    if(!currentUser || !currentUid || !window.FireDB) return false;
-    try{
-        const data = await FireDB.getUserData(currentUid);
-        isAdminUser = (data?.username === "Game_Master" && currentUser === "Game_Master");
-        return isAdminUser;
-    }catch(_){
-        isAdminUser = false;
-        return false;
-    }
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 /* =========================
-   SITE SETTINGS
+   SITE SETTINGS (from API)
 ========================= */
-async function loadSite(){
-    try{
-        const data = await FireDB.getSiteSettings();
-
-        apply({
-            title: data.title || "Home",
-            logo: data.logo || "https://via.placeholder.com/200",
-            updates: data.updates || "- Ready",
-            slogan: data.slogan || "Play. Learn. Repeat"
-        });
-    } catch(err){
-        console.error("Failed to load site settings:", err);
-        apply({
-            title: "Home",
-            logo: "https://via.placeholder.com/200",
-            updates: "- System loading...",
-            slogan: "Play. Learn. Repeat"
-        });
-    }
+function loadSite(){
+    const d = SharedState.siteSettings || {};
+    apply({
+        title: d.title || "Crit Strike",
+        logo: d.logo || "https://via.placeholder.com/200",
+        updates: d.updates || "- Ready",
+        slogan: d.slogan || "Play. Learn. Repeat"
+    });
+    document.title = d.title || "Home";
 }
 
 function apply(d){
@@ -325,71 +294,104 @@ function apply(d){
     if(el) el.innerText = d.slogan;
 }
 
-/* =========================
-   ADMIN SAVE
-========================= */
-async function save(){
-    if(!isAdminUser){
-        alert("Admin only");
+function setupSiteEditor(){
+    const panel = document.getElementById("adminSitePanel");
+    if(!panel) return;
+
+    if(!SharedState.isGameMaster()){
+        panel.style.display = "none";
         return;
     }
 
-    let title = document.getElementById("titleInput").value;
-    let slogan = document.getElementById("sloganInput").value;
-    let updates = document.getElementById("updatesInput").value;
-    let logoUrl = document.getElementById("logoInput").value;
+    panel.style.display = "block";
+    const d = SharedState.siteSettings || {};
+    document.getElementById("inlineSiteTitle").value = d.title || "";
+    document.getElementById("inlineSiteLogo").value = (d.logo && !String(d.logo).startsWith("data:")) ? d.logo : "";
+    document.getElementById("inlineSiteUpdates").value = d.updates || "";
+    document.getElementById("inlineSiteSlogan").value = d.slogan || "";
+}
+
+function openSiteEditor(){
+    setupSiteEditor();
+    document.getElementById("adminSitePanel")?.scrollIntoView({ behavior: "smooth" });
+}
+
+function closeSiteEditor(){}
+
+function readLogoFile(file){
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = (e) => resolve(e.target.result);
+        r.onerror = () => reject(new Error("Failed to read logo"));
+        r.readAsDataURL(file);
+    });
+}
+
+async function saveSiteSettings(){
+    if(!SharedState.isGameMaster()) return;
+    const msg = document.getElementById("siteEditMsg");
+    msg.innerText = "Saving...";
+    msg.style.color = "";
 
     try {
-        await FireDB.saveSiteSettings({
-            title: title || document.getElementById("siteName").innerText,
-            logo: logoUrl || document.getElementById("logoImg").src,
-            updates: updates || document.getElementById("updatesText").innerHTML,
-            slogan: slogan || document.getElementById("sloganText").innerText
-        });
+        let logo = document.getElementById("inlineSiteLogo").value.trim();
+        const logoFile = document.getElementById("inlineSiteLogoFile").files[0];
+        if(logoFile) logo = await readLogoFile(logoFile);
+        if(!logo) logo = SharedState.siteSettings?.logo || "https://via.placeholder.com/200";
 
-        alert("Saved");
+        const settings = {
+            title: document.getElementById("inlineSiteTitle").value.trim() || "Crit Strike",
+            logo,
+            updates: document.getElementById("inlineSiteUpdates").value.trim() || "- Ready",
+            slogan: document.getElementById("inlineSiteSlogan").value.trim() || "Play. Learn. Repeat"
+        };
+
+        await FireDB.saveSiteSettings(settings);
+        SharedState.siteSettings = settings;
+        localStorage.setItem("shared_site_settings", JSON.stringify(settings));
+        SharedState.syncSiteSettings();
         loadSite();
-    } catch(err){
-        alert("Save error: " + err.message);
+        msg.innerText = "Home page saved!";
+        msg.style.color = "#22c55e";
+        if(window.CritAnimations?.showToast) CritAnimations.showToast("Site updated");
+    } catch(err) {
+        msg.innerText = err.message || "Failed to save";
+        msg.style.color = "#ef4444";
     }
 }
 
 /* =========================
-   GAMES
+   GAMES (uses SharedState)
 ========================= */
-async function loadTopGames(){
-    try {
-        const games = await FireDB.getGames(true); // published only
-        const top = games
-            .filter(g => g && g.name)
-            .sort((a,b) => ((b.plays_week ?? b.players) || 0) - ((a.plays_week ?? a.players) || 0))
-            .slice(0, 4);
+function loadTopGames(){
+    const games = (SharedState.games || [])
+        .filter(g => g && g.name && (g.published === true || g.published === 1));
+    const top = games
+        .sort((a,b) => ((b.plays_week ?? b.players) || 0) - ((a.plays_week ?? a.players) || 0))
+        .slice(0, 4);
 
-        const wrap = document.getElementById("gamesContainer");
-        if(!wrap) return;
+    const wrap = document.getElementById("gamesContainer");
+    if(!wrap) return;
 
-        if(top.length === 0){
-            wrap.innerHTML = "<div>No games available yet</div>";
-            return;
-        }
-
-        wrap.innerHTML = top.map((g,i) => `
-            <div class="game">
-                <strong>#${i+1} ${g.name}</strong>
-                <p>▶ ${(g.plays_week ?? g.players) || 0} plays (this week)</p>
-                <button onclick="openGameById('${g.id}')"
-                style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent);color:white;cursor:pointer;margin-top:8px;">
-                ${currentUser ? "Play" : "Login Required"}
-                </button>
-            </div>
-        `).join("");
-    } catch(err){
-        console.error("Failed to load games:", err);
+    if(top.length === 0){
+        wrap.innerHTML = "<div>No games available yet</div>";
+        return;
     }
+
+    wrap.innerHTML = top.map((g,i) => `
+        <div class="game">
+            <strong>#${i+1} ${g.name}</strong>
+            <p>▶ ${(g.plays_week ?? g.players) || 0} plays (this week)</p>
+            <button onclick="openGameById('${g.id}')"
+            style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent);color:white;cursor:pointer;margin-top:8px;">
+            ${SharedState.currentUser ? "Play" : "Login Required"}
+            </button>
+        </div>
+    `).join("");
 }
 
 function canPlayGames(){
-    return !!currentUser;
+    return !!SharedState.currentUser;
 }
 
 function openGameById(gameId){
@@ -405,21 +407,23 @@ function openGameById(gameId){
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", async ()=>{
+    // Wait for SharedState to finish loading from server
+    if(SharedState.initPromise) await SharedState.initPromise;
+
     loadUserUI();
     loadTokens();
+    loadSite();
+    loadTopGames();
+    setupSiteEditor();
 
-    await resolveAdmin();
-    if(isAdminUser){
-        document.getElementById("adminPanel").style.display = "block";
-    }
-
-    await loadSite();
-    await loadTopGames();
-
-    // Sync on storage changes
+    // Sync on storage changes - SharedState handles most, we just refresh UI
     window.addEventListener("storage", (e) => {
-        if(e.key === "userSync") location.reload();
+        if(e.key === "userSync") { loadUserUI(); loadTokens(); setupSiteEditor(); }
         if(e.key === "tokenSync") loadTokens();
+        if(e.key === "gamesSync") {
+            SharedState.reloadGamesForDisplay().then(() => loadTopGames());
+        }
+        if(e.key === "siteSettingsSync") { loadSite(); }
         if(e.key === "theme") applyTheme();
     });
 });

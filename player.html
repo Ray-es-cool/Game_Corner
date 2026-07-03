@@ -1,77 +1,203 @@
 <!DOCTYPE html>
 <html>
-<body style="margin:0;">
+<head>
+<meta charset="UTF-8">
+<title>Playing Game</title>
 
-<audio id="audio" controls loop style="position:fixed;bottom:10px;left:10px;"></audio>
+<!-- SQLite Database Client -->
+<script src="sqlite-db.js?v=4"></script>
+<script src="shared-state.js?v=4"></script>
+<script src="app.js?v=4"></script>
+
+<!-- Shared Styles & Animations -->
+<link rel="stylesheet" href="styles.css">
+<script src="animations.js"></script>
+
+<style>
+body{
+    margin:0;
+    background:#000;
+    overflow:hidden;
+}
+
+.return-btn{
+    position:fixed;
+    top:20px;
+    left:20px;
+    z-index:1000;
+    padding:12px 24px;
+    background:#ef4444;
+    color:white;
+    border:none;
+    border-radius:10px;
+    font-size:16px;
+    cursor:pointer;
+    box-shadow:0 4px 20px rgba(239,68,68,0.4);
+}
+
+.return-btn:hover{
+    background:#dc2626;
+}
+
+.game-container{
+    width:100vw;
+    height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+#gameFrame{
+    width:100%;
+    height:100%;
+    border:none;
+}
+
+.loading{
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    color:white;
+    font-size:24px;
+}
+</style>
+</head>
+
+<body>
+
+<button class="return-btn" onclick="goBack()">← Back to Games</button>
+
+<div class="loading" id="loadingMsg">Loading game...</div>
+
+<div class="game-container">
+    <iframe id="gameFrame" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms"></iframe>
+</div>
+
+<audio id="audio" controls loop style="position:fixed;bottom:10px;left:10px;z-index:999;"></audio>
 
 <script>
 
-let audio=document.getElementById("audio");
+/* =========================
+   GAME PLAYER
+========================= */
+let currentPlaying = { gameId: null, creditPingTimer: null, gotCreditResponse: false };
+let currentUid = localStorage.getItem("currentUid");
+let currentUser = localStorage.getItem("currentUser");
 
-const defaultPlaylist=[
-"music/confess_your_love.mp3",
-"music/montagem_miau.mp3",
-"music/batidao.mp3",
-"music/montagem_rugada.mp3"
-];
+async function loadGame(){
+    const params = new URLSearchParams(window.location.search);
+    const gameId = params.get("gameId");
 
-/* GET PLAYLIST */
-function getPlaylist(){
-let p=JSON.parse(localStorage.getItem("playlist"))||[];
-return p.length?p:defaultPlaylist;
+    if(!gameId){
+        document.getElementById("loadingMsg").innerText = "No game specified";
+        return;
+    }
+
+    try{
+        const raw = await FireDB.getGameById(gameId);
+        if(!raw){
+            document.getElementById("loadingMsg").innerText = "Game not found";
+            return;
+        }
+
+        // Parse game files
+        let gameFiles = {};
+        try{
+            gameFiles = typeof raw.game_files === 'string' ? JSON.parse(raw.game_files) : (raw.game_files || {});
+        }catch(e){
+            document.getElementById("loadingMsg").innerText = "Error loading game files";
+            return;
+        }
+
+        // Find index.html
+        let mainKey = raw.entry_key || Object.keys(gameFiles).find(p => p.toLowerCase().endsWith("index.html"));
+        if(!mainKey){
+            document.getElementById("loadingMsg").innerText = "index.html not found";
+            return;
+        }
+
+        const main = gameFiles[mainKey];
+        const frame = document.getElementById("gameFrame");
+
+        // Increment play count
+        await FireDB.incrementPlayCountById(gameId);
+
+        // When iframe loads, ping for credit capability
+        frame.onload = () => {
+            document.getElementById("loadingMsg").style.display = "none";
+            currentPlaying.gameId = gameId;
+            currentPlaying.gotCreditResponse = false;
+
+            try{
+                frame.contentWindow?.postMessage({ type: "CRITSTRIKE_PING", gameId }, "*");
+            }catch(_) {}
+
+            if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+            currentPlaying.creditPingTimer = setTimeout(async () => {
+                if(!currentPlaying.gotCreditResponse && raw.credit_eligible === null){
+                    try{
+                        await FireDB.setGameCreditEligible(gameId, false);
+                    }catch(_) {}
+                }
+            }, 2500);
+        };
+
+        frame.src = main;
+    }catch(err){
+        document.getElementById("loadingMsg").innerText = "Error: " + err.message;
+    }
 }
 
-/* LOAD SONG */
-function loadSong(i){
-let playlist=getPlaylist();
-if(!playlist[i]) return;
+/* =========================
+   CREDIT SYSTEM
+========================= */
+window.addEventListener("message", async (event) => {
+    const frame = document.getElementById("gameFrame");
+    if(!frame || event.source !== frame.contentWindow) return;
+    const msg = event.data || {};
+    if(!msg || typeof msg !== "object") return;
 
-if (!playlist[i]) return;
+    if(msg.type === "CRITSTRIKE_CREDIT_CAPABLE"){
+        currentPlaying.gotCreditResponse = true;
+        if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+        if(currentPlaying.gameId){
+            try{
+                await FireDB.setGameCreditEligible(currentPlaying.gameId, true);
+            }catch(_) {}
+        }
+    }
 
-let src = playlist[i].data || playlist[i];
+    if(msg.type === "CRITSTRIKE_CREDIT_AWARD"){
+        currentPlaying.gotCreditResponse = true;
+        if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
 
-if (!src || typeof src !== "string") return;
+        const amount = parseInt(msg.amount, 10);
+        if(!currentUid || !currentUser || !Number.isFinite(amount) || amount <= 0) return;
 
-audio.pause();
-audio.src = src;
+        try{
+            if(FireDB.incrementTokens) await FireDB.incrementTokens(currentUid, amount);
+        }catch(_) {}
 
-let playPromise = audio.play();
-if (playPromise !== undefined) {
-playPromise.catch(err => {
-console.log("Audio blocked or invalid:", err);
+        const key = currentUser + "_tokens";
+        const current = parseInt(localStorage.getItem(key), 10) || 0;
+        localStorage.setItem(key, String(current + amount));
+        localStorage.setItem("tokenSync", Date.now());
+
+        if(window.CritAnimations?.showToast) CritAnimations.showToast(`+${amount} 🪙`);
+        if(window.CritAnimations?.createConfetti) CritAnimations.createConfetti();
+    }
 });
-}
-audio.play();
 
-localStorage.setItem("track",i);
-localStorage.setItem("musicPlaying","true");
+function goBack(){
+    window.location.href = "Games.html";
 }
 
-/* MESSAGE CONTROL */
-window.addEventListener("message",(e)=>{
-
-if(e.data.type==="play"){
-loadSong(e.data.index);
-}
-
-if(e.data.type==="volume"){
-audio.volume=e.data.value;
-localStorage.setItem("volume",e.data.value);
-}
-});
-
-/* AUTO RESUME */
-let last=parseInt(localStorage.getItem("track"))||0;
-
-if(localStorage.getItem("musicPlaying")==="true"){
-setTimeout(()=>loadSong(last),300);
-}
-
-/* CLICK RESUME FIX */
-document.addEventListener("click",()=>{
-if(localStorage.getItem("musicPlaying")==="true"){
-audio.play();
-}
+/* =========================
+   INIT
+========================= */
+document.addEventListener("DOMContentLoaded", ()=>{
+    loadGame();
 });
 
 </script>

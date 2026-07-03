@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <title>Shop</title>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="firebase-env.js"></script>
-<script src="firebase-config.js"></script>
+<!-- SQLite Database Client -->
+<script src="sqlite-db.js?v=4"></script>
+<script src="shared-state.js?v=4"></script>
+<script src="app.js?v=4"></script>
+
+<!-- Shared State - Hive Mind -->
+<script src="shared-state.js"></script>
 
 <!-- Shared Styles & Animations -->
 <link rel="stylesheet" href="styles.css">
@@ -186,9 +187,22 @@ font-size:18px;
 <div class="title">Shop</div>
 
 <div class="shop-grid" id="shopGrid">
-    <div class="empty-msg">
-        <p>🚧 Shop Coming Soon 🚧</p>
-        <p>Check back later for items!</p>
+    <!-- Red Theme -->
+    <div class="item">
+        <div style="width:60px;height:60px;border-radius:50%;background:#ef4444;margin:0 auto 15px;box-shadow:0 0 20px rgba(239,68,68,0.6);"></div>
+        <h3>Red Theme</h3>
+        <p>Bold red gaming theme</p>
+        <p style="font-size:18px;font-weight:bold;color:#ef4444;">🪙 100</p>
+        <button onclick="buyRedTheme()" id="buyRedBtn">Buy Now</button>
+    </div>
+
+    <!-- Lime Green Theme -->
+    <div class="item">
+        <div style="width:60px;height:60px;border-radius:50%;background:#4ade80;margin:0 auto 15px;box-shadow:0 0 20px rgba(74,222,128,0.6);"></div>
+        <h3>Lime Theme</h3>
+        <p>Vibrant lime green theme</p>
+        <p style="font-size:18px;font-weight:bold;color:#4ade80;">🪙 500</p>
+        <button onclick="buyLimeTheme()" id="buyLimeBtn">Buy Now</button>
     </div>
 </div>
 
@@ -223,22 +237,17 @@ function loadUserUI(){
 }
 
 function logoutUser(){
-    if(window.FireDB) FireDB.logout();
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUid");
-    currentUser = null;
-    localStorage.setItem("userSync", Date.now());
+    SharedState.userLogout();
     location.reload();
 }
 
 /* =========================
-   TOKENS
+   TOKENS (uses SharedState)
 ========================= */
 function loadTokens(){
     let el = document.getElementById("tokens");
-    if(!el || !currentUser) return;
-
-    el.innerText = "🪙 " + (localStorage.getItem(currentUser+"_tokens") || 0);
+    if(!el) return;
+    el.innerText = "🪙 " + SharedState.tokens;
 }
 
 window.addEventListener("storage",(e)=>{
@@ -251,11 +260,126 @@ window.addEventListener("storage",(e)=>{
 });
 
 /* =========================
+   SHOP FUNCTIONS (uses SharedState)
+========================= */
+async function buyRedTheme(){
+    if(!SharedState.currentUser || !SharedState.currentUid){
+        alert("Login required to purchase items");
+        window.location.href = "login.html";
+        return;
+    }
+
+    const currentTokens = SharedState.tokens;
+    const price = 100;
+
+    if(currentTokens < price){
+        alert("Not enough tokens! You need 100 tokens.");
+        return;
+    }
+
+    // Check if already owned (check server first, then localStorage)
+    let ownedThemes = [];
+    try {
+        ownedThemes = await FireDB.getUserThemes(currentUid) || [];
+    } catch(e) {
+        ownedThemes = JSON.parse(localStorage.getItem(currentUser+"_themes") || "[]");
+    }
+
+    if(ownedThemes.includes("red")){
+        alert("You already own the Red theme!");
+        return;
+    }
+
+    // Deduct tokens (server + localStorage)
+    const newTokens = currentTokens - price;
+    localStorage.setItem(currentUser+"_tokens", newTokens);
+    localStorage.setItem("tokenSync", Date.now());
+
+    // Deduct tokens via SharedState (syncs everywhere)
+    await SharedState.updateTokens(newTokens);
+
+    // Save theme to server
+    try {
+        await FireDB.addUserTheme(SharedState.currentUid, "red");
+    } catch(e) {
+        console.warn("Failed to save theme:", e.message);
+    }
+
+    alert("🎉 Red theme purchased! Check it out in Settings > Themes");
+    loadTokens();
+}
+
+async function buyLimeTheme(){
+    if(!SharedState.currentUser || !SharedState.currentUid){
+        alert("Login required to purchase items");
+        window.location.href = "login.html";
+        return;
+    }
+
+    const currentTokens = SharedState.tokens;
+    const price = 500;
+
+    if(currentTokens < price){
+        alert("Not enough tokens! You need 500 tokens.");
+        return;
+    }
+
+    // Check if already owned
+    let ownedThemes = [];
+    try {
+        ownedThemes = await FireDB.getUserThemes(SharedState.currentUid) || [];
+    } catch(e) {
+        ownedThemes = JSON.parse(localStorage.getItem(SharedState.currentUser+"_themes") || "[]");
+    }
+
+    if(ownedThemes.includes("lime")){
+        alert("You already own the Lime theme!");
+        return;
+    }
+
+    // Deduct tokens via SharedState (syncs everywhere)
+    const newTokens = currentTokens - price;
+    await SharedState.updateTokens(newTokens);
+
+    // Save theme to server
+    try {
+        await FireDB.addUserTheme(SharedState.currentUid, "lime");
+    } catch(e) {
+        console.warn("Failed to save theme:", e.message);
+    }
+
+    alert("🎉 Lime theme purchased! Check it out in Settings > Themes");
+    loadTokens();
+}
+
+/* =========================
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", ()=>{
+    // SharedState already initialized
     loadUserUI();
     loadTokens();
+
+    // Check if already owned and disable buttons
+    if(SharedState.currentUser){
+        const ownedThemes = JSON.parse(localStorage.getItem(SharedState.currentUser+"_themes") || "[]");
+
+        if(ownedThemes.includes("red")){
+            const btn = document.getElementById("buyRedBtn");
+            if(btn){
+                btn.disabled = true;
+                btn.innerText = "Already Owned";
+            }
+        }
+
+        if(ownedThemes.includes("lime")){
+            const btn = document.getElementById("buyLimeBtn");
+            if(btn){
+                btn.disabled = true;
+                btn.innerText = "Already Owned";
+            }
+        }
+    }
 });
 
 </script>
