@@ -180,9 +180,9 @@
           const result = await submitWithRetry(() => FireDB.login(user, pass));
 
           if(result){
-            localStorage.setItem("currentUser", user);
+            localStorage.setItem("currentUser", result.username);
             localStorage.setItem("currentUid", result.uid);
-            localStorage.setItem(user + "_tokens", result.tokens || 0);
+            localStorage.setItem(result.username + "_tokens", result.tokens || 0);
             localStorage.setItem("userSync", Date.now());
             window.location.href = "index.html";
           }
@@ -203,15 +203,23 @@
         }
       } else {
         // REGISTER
+        if(pass.length < 6){
+          msg.innerText = "Password must be at least 6 characters";
+          msg.className = "error";
+          return;
+        }
+
         try {
           const result = await submitWithRetry(() => FireDB.createUser(user, pass, "https://via.placeholder.com/40"));
 
           if(result){
-            msg.innerText = "Account created! You can now login.";
-            msg.className = "success";
-            setTimeout(() => {
-              toggleMode();
-            }, 1500);
+            // Auto-login after successful registration
+            const loginResult = await FireDB.login(user, pass);
+            localStorage.setItem("currentUser", loginResult.username);
+            localStorage.setItem("currentUid", loginResult.uid);
+            localStorage.setItem(loginResult.username + "_tokens", loginResult.tokens || 0);
+            localStorage.setItem("userSync", Date.now());
+            window.location.href = "index.html";
           }
         } catch(err){
           console.error(err);

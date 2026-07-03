@@ -11,6 +11,10 @@ const SharedState = {
   playlist: [],
   siteSettings: {},
 
+  isGameMaster() {
+    return this.currentUser === "Game_Master";
+  },
+
   // Initialize shared state
   async init() {
     this.currentUser = localStorage.getItem("currentUser");
@@ -54,13 +58,26 @@ const SharedState = {
   async loadGames() {
     if (!window.FireDB) return;
     try {
-      this.games = await FireDB.getGames(true);
+      const publishedOnly = !this.isGameMaster();
+      this.games = await FireDB.getGames(publishedOnly);
       localStorage.setItem("shared_games", JSON.stringify(this.games));
       localStorage.setItem("shared_games_time", Date.now());
     } catch (e) {
       console.warn("[SharedState] Games load failed:", e.message);
       const cached = localStorage.getItem("shared_games");
       this.games = cached ? JSON.parse(cached) : [];
+    }
+  },
+
+  // Reload published games for home page / public display
+  async reloadGamesForDisplay() {
+    if (!window.FireDB) return;
+    try {
+      this.games = await FireDB.getGames(true);
+      localStorage.setItem("shared_games", JSON.stringify(this.games));
+      localStorage.setItem("shared_games_time", Date.now());
+    } catch (e) {
+      console.warn("[SharedState] Games reload failed:", e.message);
     }
   },
 
@@ -190,6 +207,9 @@ const SharedState = {
 };
 
 // Auto-initialize when script loads
-document.addEventListener("DOMContentLoaded", () => {
-  SharedState.init();
-});
+SharedState.initPromise = (async () => {
+  if (document.readyState === "loading") {
+    await new Promise(resolve => document.addEventListener("DOMContentLoaded", resolve));
+  }
+  await SharedState.init();
+})();

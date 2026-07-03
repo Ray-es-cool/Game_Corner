@@ -42,7 +42,7 @@ async function startServer() {
   app.use(cors({
       origin: "*",
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"]
+      allowedHeaders: ["Content-Type", "Authorization", "X-Username"]
   }));
 
   // SECURITY HEADERS
@@ -134,6 +134,24 @@ async function startServer() {
   // USER API ENDPOINTS
   // =========================
 
+  // Game_Master admin verification middleware
+  async function requireGameMaster(req, res, next) {
+    try {
+      const username = req.headers['x-username'] || req.body?.adminUsername;
+      if (!username || username !== 'Game_Master') {
+        return res.status(403).json({ success: false, error: 'Game_Master access required' });
+      }
+      const user = await db.getUserByUsername('Game_Master');
+      if (!user) {
+        return res.status(403).json({ success: false, error: 'Game_Master account not found' });
+      }
+      next();
+    } catch (err) {
+      console.error('Admin auth error:', err);
+      res.status(500).json({ success: false, error: 'Server error' });
+    }
+  }
+
   app.post("/api/users/signup", async (req, res) => {
     try {
       const { username, password, pfp } = req.body;
@@ -142,12 +160,21 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Username and password required" });
       }
 
-      const existing = await db.getUserByUsername(username);
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, error: "Password must be at least 6 characters" });
+      }
+
+      const trimmedUsername = username.trim();
+      if (!trimmedUsername) {
+        return res.status(400).json({ success: false, error: "Username cannot be empty" });
+      }
+
+      const existing = await db.getUserByUsername(trimmedUsername);
       if (existing) {
         return res.status(409).json({ success: false, error: "Username already exists" });
       }
 
-      const user = await db.createUser(username, password, pfp);
+      const user = await db.createUser(trimmedUsername, password, pfp);
       res.json({ success: true, uid: user.uid, username: user.username });
     } catch (err) {
       console.error("Signup error:", err);
@@ -163,7 +190,12 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Username and password required" });
       }
 
-      const user = await db.getUserByUsername(username);
+      const trimmedUsername = username.trim();
+      if (!trimmedUsername) {
+        return res.status(400).json({ success: false, error: "Username and password required" });
+      }
+
+      const user = await db.getUserByUsername(trimmedUsername);
       if (!user) {
         return res.status(401).json({ success: false, error: "Invalid credentials" });
       }
@@ -181,28 +213,6 @@ async function startServer() {
       });
     } catch (err) {
       console.error("Login error:", err);
-      res.status(500).json({ success: false, error: "Server error" });
-    }
-  });
-
-  app.get("/api/users/:username", async (req, res) => {
-    try {
-      const user = await db.getUserByUsername(req.params.username);
-      if (!user) {
-        return res.status(404).json({ success: false, error: "User not found" });
-      }
-
-      res.json({
-        success: true,
-        uid: user.uid,
-        username: user.username,
-        tokens: user.tokens,
-        pfp: user.pfp,
-        themes: JSON.parse(user.themes || '[]'),
-        inventory: JSON.parse(user.inventory || '[]')
-      });
-    } catch (err) {
-      console.error("Get user error:", err);
       res.status(500).json({ success: false, error: "Server error" });
     }
   });
@@ -225,6 +235,28 @@ async function startServer() {
       });
     } catch (err) {
       console.error("Get user by uid error:", err);
+      res.status(500).json({ success: false, error: "Server error" });
+    }
+  });
+
+  app.get("/api/users/:username", async (req, res) => {
+    try {
+      const user = await db.getUserByUsername(req.params.username);
+      if (!user) {
+        return res.status(404).json({ success: false, error: "User not found" });
+      }
+
+      res.json({
+        success: true,
+        uid: user.uid,
+        username: user.username,
+        tokens: user.tokens,
+        pfp: user.pfp,
+        themes: JSON.parse(user.themes || '[]'),
+        inventory: JSON.parse(user.inventory || '[]')
+      });
+    } catch (err) {
+      console.error("Get user error:", err);
       res.status(500).json({ success: false, error: "Server error" });
     }
   });
@@ -271,7 +303,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/games", async (req, res) => {
+  app.post("/api/games", requireGameMaster, async (req, res) => {
     try {
       const { slotIndex, gameData } = req.body;
 
@@ -302,7 +334,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/games/:id", async (req, res) => {
+  app.delete("/api/games/:id", requireGameMaster, async (req, res) => {
     try {
       const { id } = req.params;
       await db.deleteGameById(id);
@@ -313,7 +345,7 @@ async function startServer() {
     }
   });
 
-  app.put("/api/games/:id", async (req, res) => {
+  app.put("/api/games/:id", requireGameMaster, async (req, res) => {
     try {
       const { id } = req.params;
       const patch = req.body;
@@ -335,7 +367,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/games/:id/credit", async (req, res) => {
+  app.post("/api/games/:id/credit", requireGameMaster, async (req, res) => {
     try {
       const { eligible } = req.body;
       await db.setGameCreditEligible(req.params.id, eligible);
@@ -360,7 +392,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/music", async (req, res) => {
+  app.post("/api/music", requireGameMaster, async (req, res) => {
     try {
       const { name, fileData, fileType } = req.body;
       const id = await db.uploadMusic(name, fileData, fileType);
@@ -371,7 +403,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/music/:id", async (req, res) => {
+  app.delete("/api/music/:id", requireGameMaster, async (req, res) => {
     try {
       await db.deleteMusic(req.params.id);
       res.json({ success: true });
@@ -381,7 +413,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/music", async (req, res) => {
+  app.delete("/api/music", requireGameMaster, async (req, res) => {
     try {
       await db.clearAllMusic();
       res.json({ success: true });
@@ -405,7 +437,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/site-settings", async (req, res) => {
+  app.post("/api/site-settings", requireGameMaster, async (req, res) => {
     try {
       await db.saveSiteSettings(req.body);
       res.json({ success: true });

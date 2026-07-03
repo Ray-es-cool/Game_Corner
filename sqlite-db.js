@@ -6,6 +6,13 @@
 const API_URL = window.location.origin;
 console.log('[SQLiteDB] API URL:', API_URL);
 
+function adminHeaders() {
+  const username = localStorage.getItem('currentUser');
+  const headers = { 'Content-Type': 'application/json' };
+  if (username) headers['X-Username'] = username;
+  return headers;
+}
+
 window.SQLiteDB = {
   // USERS
   async createUser(username, password, pfp) {
@@ -42,6 +49,13 @@ window.SQLiteDB = {
 
   async logout() {
     // No-op for sessionless auth
+  },
+
+  async getUserByUid(uid) {
+    const res = await fetch(`${API_URL}/api/users/uid/${uid}`);
+    const result = await res.json();
+    if (result.success) return result;
+    return null;
   },
 
   async getUserData(uid) {
@@ -124,12 +138,12 @@ window.SQLiteDB = {
   async saveSiteSettings(settings) {
     const res = await fetch(`${API_URL}/api/site-settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify(settings)
     });
     const result = await res.json();
     if (!result.success) {
-      throw new Error('Failed to save settings');
+      throw new Error(result.error || 'Failed to save settings');
     }
   },
 
@@ -149,7 +163,7 @@ window.SQLiteDB = {
   async saveGame(slotIndex, gameData) {
     const res = await fetch(`${API_URL}/api/games`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify({ slotIndex, gameData })
     });
     const result = await res.json();
@@ -162,12 +176,12 @@ window.SQLiteDB = {
   async createGame(gameData) {
     const res = await fetch(`${API_URL}/api/games`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify({ gameData })
     });
     const result = await res.json();
     if (!result.success) {
-      throw new Error('Failed to create game');
+      throw new Error(result.error || 'Failed to create game');
     }
     return result.id;
   },
@@ -175,7 +189,7 @@ window.SQLiteDB = {
   async updateGameById(gameId, patch) {
     const res = await fetch(`${API_URL}/api/games/${gameId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify(patch)
     });
     const result = await res.json();
@@ -195,7 +209,8 @@ window.SQLiteDB = {
 
   async deleteGameById(gameId) {
     const res = await fetch(`${API_URL}/api/games/${gameId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: adminHeaders()
     });
     const result = await res.json();
     if (!result.success) {
@@ -234,7 +249,7 @@ window.SQLiteDB = {
   async setGameCreditEligible(gameId, eligible) {
     const res = await fetch(`${API_URL}/api/games/${gameId}/credit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify({ eligible })
     });
     const result = await res.json();
@@ -271,7 +286,7 @@ window.SQLiteDB = {
   async uploadMusic(name, fileData, fileType) {
     const res = await fetch(`${API_URL}/api/music`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify({ name, fileData, fileType })
     });
     const result = await res.json();
@@ -283,7 +298,8 @@ window.SQLiteDB = {
 
   async deleteMusic(musicId) {
     const res = await fetch(`${API_URL}/api/music/${musicId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: adminHeaders()
     });
     const result = await res.json();
     if (!result.success) {
@@ -293,7 +309,8 @@ window.SQLiteDB = {
 
   async clearAllMusic() {
     const res = await fetch(`${API_URL}/api/music`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: adminHeaders()
     });
     const result = await res.json();
     if (!result.success) {

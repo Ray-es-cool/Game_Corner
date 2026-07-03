@@ -90,8 +90,28 @@ padding:20px;
 box-shadow:0 0 15px rgba(59,130,246,0.2);
 }
 
-.logo-box{height:220px;display:flex;align-items:center;justify-content:center;}
+.logo-box{height:220px;display:flex;align-items:center;justify-content:center;position:relative;}
 .logo-box img{width:180px;height:180px;border-radius:25px;background:var(--card);}
+.edit-site-btn{
+position:absolute;top:8px;right:8px;padding:6px 10px;font-size:12px;
+background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;display:none;
+}
+.site-modal{
+display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;
+align-items:center;justify-content:center;
+}
+.site-modal-content{
+background:var(--panel);padding:24px;border-radius:16px;width:90%;max-width:420px;
+}
+.site-modal input,.site-modal textarea{
+width:100%;margin:8px 0;padding:10px;border:none;border-radius:8px;
+background:var(--card);color:var(--text);box-sizing:border-box;
+}
+.site-modal textarea{min-height:80px;resize:vertical;}
+.site-modal-actions{display:flex;gap:10px;margin-top:12px;}
+.site-modal-actions button{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;}
+.site-modal-actions .save{background:var(--accent);color:white;}
+.site-modal-actions .cancel{background:var(--card);color:var(--text);}
 
 .center{flex:1;}
 .title{text-align:center;font-size:50px;margin-bottom:10px;}
@@ -147,6 +167,7 @@ font-size:30px;
 <div class="left">
 <div class="box logo-box">
 <img id="logoImg" src="https://via.placeholder.com/200">
+<button class="edit-site-btn" id="editSiteBtn" onclick="openSiteEditor()">Edit Site</button>
 </div>
 
 <div class="box">
@@ -173,6 +194,26 @@ font-size:30px;
 </div>
 
 <div class="token" id="tokens">🪙 0</div>
+
+<div class="site-modal" id="siteModal">
+<div class="site-modal-content">
+<h3>Edit Site (Game_Master)</h3>
+<label>Site Title</label>
+<input type="text" id="editTitle" placeholder="Site title">
+<label>Logo URL or upload image</label>
+<input type="text" id="editLogoUrl" placeholder="https://...">
+<input type="file" id="editLogoFile" accept="image/*">
+<label>Updates</label>
+<textarea id="editUpdates" placeholder="- New update here"></textarea>
+<label>Slogan</label>
+<input type="text" id="editSlogan" placeholder="Play. Learn. Repeat">
+<div class="site-modal-actions">
+<button class="cancel" onclick="closeSiteEditor()">Cancel</button>
+<button class="save" onclick="saveSiteSettings()">Save</button>
+</div>
+<p id="siteEditMsg" style="font-size:13px;margin-top:8px;"></p>
+</div>
+</div>
 
 <script>
 
@@ -213,15 +254,17 @@ function loadTokens(){
 }
 
 /* =========================
-   SITE SETTINGS (Hardcoded)
+   SITE SETTINGS (from API)
 ========================= */
 function loadSite(){
+    const d = SharedState.siteSettings || {};
     apply({
-        title: "Crit Strike",
-        logo: "https://via.placeholder.com/200",
-        updates: "- Newly launched web service",
-        slogan: "Play Earn Repeat"
+        title: d.title || "Crit Strike",
+        logo: d.logo || "https://via.placeholder.com/200",
+        updates: d.updates || "- Ready",
+        slogan: d.slogan || "Play. Learn. Repeat"
     });
+    document.title = d.title || "Home";
 }
 
 function apply(d){
@@ -243,13 +286,75 @@ function apply(d){
     if(el) el.innerText = d.slogan;
 }
 
+function setupSiteEditor(){
+    const btn = document.getElementById("editSiteBtn");
+    if(!btn) return;
+    btn.style.display = SharedState.isGameMaster() ? "block" : "none";
+}
+
+function openSiteEditor(){
+    if(!SharedState.isGameMaster()) return;
+    const d = SharedState.siteSettings || {};
+    document.getElementById("editTitle").value = d.title || "";
+    document.getElementById("editLogoUrl").value = (d.logo && !d.logo.startsWith("data:")) ? d.logo : "";
+    document.getElementById("editUpdates").value = d.updates || "";
+    document.getElementById("editSlogan").value = d.slogan || "";
+    document.getElementById("siteEditMsg").innerText = "";
+    document.getElementById("siteModal").style.display = "flex";
+}
+
+function closeSiteEditor(){
+    document.getElementById("siteModal").style.display = "none";
+}
+
+function readLogoFile(file){
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = (e) => resolve(e.target.result);
+        r.onerror = () => reject(new Error("Failed to read logo"));
+        r.readAsDataURL(file);
+    });
+}
+
+async function saveSiteSettings(){
+    if(!SharedState.isGameMaster()) return;
+    const msg = document.getElementById("siteEditMsg");
+    msg.innerText = "Saving...";
+    msg.style.color = "";
+
+    try {
+        let logo = document.getElementById("editLogoUrl").value.trim();
+        const logoFile = document.getElementById("editLogoFile").files[0];
+        if(logoFile) logo = await readLogoFile(logoFile);
+        if(!logo) logo = SharedState.siteSettings?.logo || "https://via.placeholder.com/200";
+
+        const settings = {
+            title: document.getElementById("editTitle").value.trim() || "Crit Strike",
+            logo,
+            updates: document.getElementById("editUpdates").value.trim() || "- Ready",
+            slogan: document.getElementById("editSlogan").value.trim() || "Play. Learn. Repeat"
+        };
+
+        await FireDB.saveSiteSettings(settings);
+        SharedState.siteSettings = settings;
+        localStorage.setItem("shared_site_settings", JSON.stringify(settings));
+        SharedState.syncSiteSettings();
+        loadSite();
+        closeSiteEditor();
+        if(window.CritAnimations?.showToast) CritAnimations.showToast("Site updated");
+    } catch(err) {
+        msg.innerText = err.message || "Failed to save";
+        msg.style.color = "#ef4444";
+    }
+}
+
 /* =========================
    GAMES (uses SharedState)
 ========================= */
 function loadTopGames(){
-    const games = SharedState.games || [];
+    const games = (SharedState.games || [])
+        .filter(g => g && g.name && (g.published === true || g.published === 1));
     const top = games
-        .filter(g => g && g.name)
         .sort((a,b) => ((b.plays_week ?? b.players) || 0) - ((a.plays_week ?? a.players) || 0))
         .slice(0, 4);
 
@@ -289,18 +394,24 @@ function openGameById(gameId){
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", ()=>{
-    // SharedState already initialized by shared-state.js
+document.addEventListener("DOMContentLoaded", async ()=>{
+    // Wait for SharedState to finish loading from server
+    if(SharedState.initPromise) await SharedState.initPromise;
+
     loadUserUI();
     loadTokens();
     loadSite();
     loadTopGames();
+    setupSiteEditor();
 
     // Sync on storage changes - SharedState handles most, we just refresh UI
     window.addEventListener("storage", (e) => {
-        if(e.key === "userSync") { loadUserUI(); loadTokens(); }
+        if(e.key === "userSync") { loadUserUI(); loadTokens(); setupSiteEditor(); }
         if(e.key === "tokenSync") loadTokens();
-        if(e.key === "gamesSync") loadTopGames();
+        if(e.key === "gamesSync") {
+            SharedState.reloadGamesForDisplay().then(() => loadTopGames());
+        }
+        if(e.key === "siteSettingsSync") { loadSite(); }
         if(e.key === "theme") applyTheme();
     });
 });

@@ -452,7 +452,7 @@ function normalizeGame(g){
         id: g.id,
         name: g.name || "Untitled",
         thumbnail: g.thumbnail || "https://via.placeholder.com/200?text=No+Image",
-        published: g.published === true,
+        published: g.published === true || g.published === 1,
         playsWeek: g.plays_week || 0,
         playsTotal: g.plays_total || 0,
         legacyPlayers: g.players || 0,
@@ -598,9 +598,10 @@ async function createGameFromModal(){
         if(window.CritAnimations?.showToast) CritAnimations.showToast("Game created");
         closeAddGame();
         // Reload games from server and sync to all users
-        await SharedState.loadGames();
+        await SharedState.reloadGamesForDisplay();
+        if(SharedState.isGameMaster()) await SharedState.loadGames();
         SharedState.syncGames();
-        await loadGames();
+        loadGames();
     }catch(err){
         alert("Create error: " + err.message);
     }
@@ -641,10 +642,10 @@ async function togglePublishById(gameId, currentlyPublished){
     if(!isAdminUser) return;
     try{
         await FireDB.updateGameById(gameId, { published: !currentlyPublished });
-        // Reload games from server and sync to all users
-        await SharedState.loadGames();
+        await SharedState.reloadGamesForDisplay();
+        if(SharedState.isGameMaster()) await SharedState.loadGames();
         SharedState.syncGames();
-        await loadGames();
+        loadGames();
     }catch(err){
         alert("Publish error: " + err.message);
     }
@@ -655,10 +656,10 @@ async function deleteGameById(gameId){
     if(!confirm("Delete this game?")) return;
     try{
         await FireDB.deleteGameById(gameId);
-        // Reload games from server and sync to all users
-        await SharedState.loadGames();
+        await SharedState.reloadGamesForDisplay();
+        if(SharedState.isGameMaster()) await SharedState.loadGames();
         SharedState.syncGames();
-        await loadGames();
+        loadGames();
     }catch(err){
         alert("Delete error: " + err.message);
     }
@@ -749,7 +750,8 @@ function closeGame(){
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", async ()=>{
-    // SharedState already initialized by shared-state.js
+    if(SharedState.initPromise) await SharedState.initPromise;
+
     loadUserUI();
     loadTokens();
     await resolveAdmin();
@@ -778,7 +780,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     // Sync on storage changes - SharedState handles data, we refresh UI
     window.addEventListener("storage", (e)=>{
-        if(e.key === "gamesSync"){ loadGames(); renderGamesByTab(); }
+        if(e.key === "gamesSync"){
+            SharedState.loadGames().then(() => { loadGames(); renderGamesByTab(); });
+        }
         if(e.key === "userSync"){ loadUserUI(); loadTokens(); }
         if(e.key === "tokenSync"){ loadTokens(); }
         if(e.key === "theme"){ applyTheme(); }

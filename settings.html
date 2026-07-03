@@ -227,6 +227,23 @@ border:3px solid var(--accent);
 h3{
 margin-top:20px;
 }
+
+.admin-site-panel{
+display:none;margin-top:25px;padding-top:20px;border-top:1px solid var(--card);
+text-align:left;
+}
+
+.admin-site-panel input,.admin-site-panel textarea{
+width:100%;margin:8px 0;padding:10px;border:none;border-radius:8px;
+background:var(--card);color:var(--text);box-sizing:border-box;
+}
+
+.admin-site-panel textarea{min-height:70px;resize:vertical;}
+
+.admin-save-btn{
+margin-top:10px;padding:12px;width:100%;border:none;border-radius:10px;
+background:var(--accent);color:white;cursor:pointer;font-size:16px;
+}
 </style>
 </head>
 
@@ -273,6 +290,21 @@ margin-top:20px;
 
 <button class="setting-btn" onclick="goMusic()">🎵 Music Player</button>
 
+<div class="admin-site-panel" id="adminSitePanel">
+<h3>Site Management (Game_Master)</h3>
+<label>Site Title</label>
+<input type="text" id="adminSiteTitle" placeholder="Site title">
+<label>Logo URL</label>
+<input type="text" id="adminSiteLogo" placeholder="https://...">
+<input type="file" id="adminSiteLogoFile" accept="image/*">
+<label>Updates</label>
+<textarea id="adminSiteUpdates" placeholder="- New update"></textarea>
+<label>Slogan</label>
+<input type="text" id="adminSiteSlogan" placeholder="Play. Learn. Repeat">
+<button class="admin-save-btn" onclick="saveAdminSiteSettings()">Save Site Settings</button>
+<p id="adminSiteMsg" style="font-size:13px;margin-top:8px;"></p>
+</div>
+
 </div>
 </div>
 
@@ -313,6 +345,58 @@ function loadTokens(){
 /* NAVIGATION */
 function goMusic(){
     window.location.href = "Music.html";
+}
+
+function setupAdminSitePanel(){
+    const panel = document.getElementById("adminSitePanel");
+    if(!panel || !SharedState.isGameMaster()) return;
+
+    panel.style.display = "block";
+    const d = SharedState.siteSettings || {};
+    document.getElementById("adminSiteTitle").value = d.title || "";
+    document.getElementById("adminSiteLogo").value = (d.logo && !String(d.logo).startsWith("data:")) ? d.logo : "";
+    document.getElementById("adminSiteUpdates").value = d.updates || "";
+    document.getElementById("adminSiteSlogan").value = d.slogan || "";
+}
+
+function readAdminLogoFile(file){
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = (e) => resolve(e.target.result);
+        r.onerror = () => reject(new Error("Failed to read logo"));
+        r.readAsDataURL(file);
+    });
+}
+
+async function saveAdminSiteSettings(){
+    if(!SharedState.isGameMaster()) return;
+    const msg = document.getElementById("adminSiteMsg");
+    msg.innerText = "Saving...";
+    msg.style.color = "";
+
+    try {
+        let logo = document.getElementById("adminSiteLogo").value.trim();
+        const logoFile = document.getElementById("adminSiteLogoFile").files[0];
+        if(logoFile) logo = await readAdminLogoFile(logoFile);
+        if(!logo) logo = SharedState.siteSettings?.logo || "https://via.placeholder.com/200";
+
+        const settings = {
+            title: document.getElementById("adminSiteTitle").value.trim() || "Crit Strike",
+            logo,
+            updates: document.getElementById("adminSiteUpdates").value.trim() || "- Ready",
+            slogan: document.getElementById("adminSiteSlogan").value.trim() || "Play. Learn. Repeat"
+        };
+
+        await FireDB.saveSiteSettings(settings);
+        SharedState.siteSettings = settings;
+        localStorage.setItem("shared_site_settings", JSON.stringify(settings));
+        SharedState.syncSiteSettings();
+        msg.innerText = "Site settings saved!";
+        msg.style.color = "#22c55e";
+    } catch(err) {
+        msg.innerText = err.message || "Failed to save";
+        msg.style.color = "#ef4444";
+    }
 }
 
 /* THEME */
@@ -370,10 +454,12 @@ window.addEventListener("storage",(e)=>{
 
 /* INIT */
 document.addEventListener("DOMContentLoaded", async ()=>{
-    // SharedState already initialized by shared-state.js
+    if(SharedState.initPromise) await SharedState.initPromise;
+
     loadUser();
     loadTokens();
     syncVolume();
+    setupAdminSitePanel();
 
     // Load owned themes from server (or localStorage fallback)
     if(SharedState.currentUser && SharedState.currentUid){

@@ -261,13 +261,18 @@ reader.readAsDataURL(file);
 ========================= */
 async function signup(){
 
-let u = document.getElementById("username").value;
+let u = document.getElementById("username").value.trim();
 let p = document.getElementById("password").value;
 let urlPic = document.getElementById("pfp").value;
 let file = document.getElementById("pfpFile").files[0];
 
 if(!u || !p){
 document.getElementById("msg").innerText = "Fill all fields";
+return;
+}
+
+if(p.length < 6){
+document.getElementById("msg").innerText = "Password must be at least 6 characters";
 return;
 }
 
@@ -286,9 +291,9 @@ try{
 const result = await FireDB.createUser(u, p, pfp);
 
 if(result){
-localStorage.setItem("currentUser", u);
+localStorage.setItem("currentUser", result.username);
 localStorage.setItem("currentUid", result.uid);
-localStorage.setItem(u+"_tokens", 0);
+localStorage.setItem(result.username+"_tokens", 0);
 localStorage.setItem("userSync", Date.now());
 location.href="index.html";
 }else{

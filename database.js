@@ -240,6 +240,15 @@ module.exports = {
   },
 
   // GAMES
+  normalizeGameRow(g) {
+    if (!g) return null;
+    return {
+      ...g,
+      published: g.published === 1 || g.published === true,
+      credit_eligible: g.credit_eligible === null ? null : g.credit_eligible === 1
+    };
+  },
+
   async getGames(publishedOnly = false) {
     let stmt;
     if (publishedOnly) {
@@ -248,22 +257,13 @@ module.exports = {
       stmt = db.prepare('SELECT * FROM games ORDER BY updated_at DESC');
     }
     const games = getRows(stmt);
-    return games.map(g => ({
-      ...g,
-      credit_eligible: g.credit_eligible === null ? null : g.credit_eligible === 1
-    }));
+    return games.map(g => this.normalizeGameRow(g));
   },
 
   async getGameById(gameId) {
     const stmt = db.prepare('SELECT * FROM games WHERE id = ?');
     const game = getRow(stmt, [gameId]);
-    if (game) {
-      return {
-        ...game,
-        credit_eligible: game.credit_eligible === null ? null : game.credit_eligible === 1
-      };
-    }
-    return null;
+    return this.normalizeGameRow(game);
   },
 
   async saveGame(slotIndex, gameData) {
@@ -337,10 +337,20 @@ module.exports = {
     const game = getRow(stmt, [gameId]);
     if (!game) return;
 
-    const updates = { ...game, ...patch };
-    const creditEligible = typeof updates.credit_eligible === 'boolean'
-      ? (updates.credit_eligible ? 1 : 0)
-      : null;
+    const name = patch.name !== undefined ? patch.name : game.name;
+    const thumbnail = patch.thumbnail !== undefined ? patch.thumbnail : game.thumbnail;
+    const gameFiles = patch.game_files !== undefined ? patch.game_files : game.game_files;
+    const players = patch.players !== undefined ? patch.players : game.players;
+    const playsWeek = patch.plays_week !== undefined ? patch.plays_week : game.plays_week;
+    const playsTotal = patch.plays_total !== undefined ? patch.plays_total : game.plays_total;
+
+    const creditEligible = typeof patch.credit_eligible === 'boolean'
+      ? (patch.credit_eligible ? 1 : 0)
+      : game.credit_eligible;
+
+    const published = typeof patch.published === 'boolean'
+      ? (patch.published ? 1 : 0)
+      : game.published;
 
     db.run(`
       UPDATE games SET
@@ -350,14 +360,14 @@ module.exports = {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [
-      updates.name,
-      updates.thumbnail,
-      updates.game_files,
-      updates.players,
-      updates.plays_week,
-      updates.plays_total,
+      name,
+      thumbnail,
+      gameFiles,
+      players,
+      playsWeek,
+      playsTotal,
       creditEligible,
-      updates.published ? 1 : 0,
+      published,
       gameId
     ]);
     saveDatabase();
@@ -430,8 +440,9 @@ module.exports = {
   },
 
   async uploadMusic(name, fileData, fileType) {
-    const result = db.prepare('SELECT MAX(order_index) as max_order FROM music').get();
-    const orderIndex = (result.max_order ?? -1) + 1;
+    const stmt = db.prepare('SELECT MAX(order_index) as max_order FROM music');
+    const result = getRow(stmt);
+    const orderIndex = (result?.max_order ?? -1) + 1;
     const id = generateId();
 
     db.run(`
@@ -461,7 +472,8 @@ module.exports = {
       slogan: 'Play. Learn. Repeat'
     };
 
-    const rows = db.prepare('SELECT key, value FROM site_settings').all();
+    const stmt = db.prepare('SELECT key, value FROM site_settings');
+    const rows = getRows(stmt);
     if (rows.length === 0) return defaults;
 
     const settings = {};
@@ -489,7 +501,8 @@ module.exports = {
 
   // META
   async getMeta(key) {
-    const row = db.prepare('SELECT value FROM meta WHERE key = ?').get([key]);
+    const stmt = db.prepare('SELECT value FROM meta WHERE key = ?');
+    const row = getRow(stmt, [key]);
     return row ? JSON.parse(row.value) : null;
   },
 
