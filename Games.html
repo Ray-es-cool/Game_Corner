@@ -334,8 +334,8 @@ body{
     <div class="game-grid" id="gameGrid"></div>
 </div>
 
-<!-- ADMIN: ADD GAME BUTTON -->
-<button id="addGameBtn" title="Add Game" style="display:none;position:fixed;right:22px;bottom:88px;width:56px;height:56px;border-radius:18px;border:none;background:var(--accent);color:white;font-size:32px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,0.35);z-index:1100;">+</button>
+<!-- ADMIN: ADD GAME BUTTON (Big blue plus) -->
+<button id="addGameBtn" title="Add Game" aria-label="Add Game" style="display:none;position:fixed;right:20px;bottom:20px;width:72px;height:72px;border-radius:50%;border:none;background:var(--accent);color:white;font-size:44px;cursor:pointer;box-shadow:0 12px 36px rgba(0,0,0,0.35);z-index:1100;display:none;align-items:center;justify-content:center;">+</button>
 
 <!-- ADMIN: ADD GAME MODAL -->
 <div class="game-overlay" id="addGameModal" style="display:none;">
@@ -350,10 +350,10 @@ body{
                 <input type="text" id="newGameTitle" placeholder="Game title">
 
                 <label>Thumbnail Image</label>
-                <input type="file" id="newGameThumb" accept="image/*">
+                <input type="file" id="newGameThumb" accept="image/*" required>
 
                 <label>Game Folder (index.html required)</label>
-                <input type="file" id="newGameFiles" webkitdirectory multiple>
+                <input type="file" id="newGameFiles" webkitdirectory multiple required>
                 <div style="font-size:12px;opacity:0.75;margin-top:6px;">
                     Tip: upload a folder that contains an <b>index.html</b>.
                 </div>
@@ -370,7 +370,7 @@ body{
                     Publish immediately
                 </label>
 
-                <button class="save-btn" onclick="createGameFromModal()">Create Game</button>
+                <button class="save-btn" onclick="createGameFromModal()">Create & Publish</button>
             </div>
         </div>
     </div>
