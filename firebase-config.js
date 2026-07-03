@@ -7,12 +7,18 @@
    2. Click "Add project" and create your project
    3. Enable Firestore Database (start in test mode)
    4. Enable Authentication (Email/Password)
-   5. Add a Web App and copy the config
-   6. Replace the config values below
+   5. Enable Storage (Cloud Storage)
+   6. Add a Web App and copy the config
+   7. Replace the config values below
 
    RAILWAY DEPLOYMENT:
    - Add the Firebase config values as environment variables in Railway
    - See .env.example for the variable names
+
+   OPTIMIZATION NOTE:
+   - Music and game files are now stored in Firebase Storage
+   - Only metadata and file references are stored in Firestore
+   - This dramatically improves load times for players
 ========================= */
 
 // Browser-only guard
@@ -72,10 +78,12 @@ if (isDefaultConfig) {
   // Initialize services
   const db = firebase.firestore();
   const auth = firebase.auth();
+  const storage = firebase.storage();
 
   // Make globally available
   window.db = db;
   window.auth = auth;
+  window.storage = storage;
 
   /* =========================
      FIRESTORE DATA HELPERS
@@ -232,21 +240,102 @@ if (isDefaultConfig) {
     },
 
     async createGame(gameData) {
-      const payload = {
-        name: gameData.name,
-        thumbnail: gameData.thumbnail || "",
-        game_files: gameData.gameFiles || {},
-        entry_key: gameData.entryKey || "",
-        published: gameData.publish === false ? false : true,
-        credit_eligible: typeof gameData.creditEligible === "boolean" ? gameData.creditEligible : null,
-        players: 0,
-        plays_week: 0,
-        plays_total: 0,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      try {
+        // Upload thumbnail to Storage
+        let thumbnailUrl = "";
+        if (gameData.thumbnail) {
+          const thumbnailName = `game_thumb_${Date.now()}.jpg`;
+          const base64Data = gameData.thumbnail.split(',')[1];
+          const binaryData = atob(base64Data);
+          const byteArray = new Uint8Array(binaryData.length);
+          for (let i = 0; i < binaryData.length; i++) {
+            byteArray[i] = binaryData.charCodeAt(i);
+          }
+          
+          const thumbPath = `game_thumbnails/${thumbnailName}`;
+          const uploadTask = storage.ref(thumbPath).put(byteArray, { contentType: 'image/jpeg' });
+          const snapshot = await uploadTask;
+          thumbnailUrl = await snapshot.ref.getDownloadURL();
+        }
+        
+        // Process and upload game files - create a manifest
+        const gameFilesManifest = {};
+        const gameFileUploadPromises = [];
+        
+        if (gameData.gameFiles && typeof gameData.gameFiles === 'object') {
+          const gameId = `game_${Date.now()}`;
+          
+          for (const [filePath, fileData] of Object.entries(gameData.gameFiles)) {
+            // Extract base64 data
+            const base64Data = fileData.split(',')[1] || fileData;
+            const binaryData = atob(base64Data);
+            const byteArray = new Uint8Array(binaryData.length);
+            for (let i = 0; i < binaryData.length; i++) {
+              byteArray[i] = binaryData.charCodeAt(i);
+            }
+            
+            // Sanitize path and upload
+            const safePath = filePath.replace(/\\/g, '/');
+            const storagePath = `games/${gameId}/${safePath}`;
+            
+            const mimeType = this._getMimeType(filePath);
+            const uploadPromise = storage.ref(storagePath)
+              .put(byteArray, { contentType: mimeType })
+              .then(snapshot => snapshot.ref.getDownloadURL())
+              .then(url => {
+                gameFilesManifest[safePath] = url;
+              });
+            
+            gameFileUploadPromises.push(uploadPromise);
+          }
+          
+          // Wait for all uploads to complete
+          await Promise.all(gameFileUploadPromises);
+        }
+        
+        // Store only metadata and file URLs in Firestore
+        const payload = {
+          name: gameData.name,
+          thumbnail: thumbnailUrl,  // URL to Storage
+          game_files: gameFilesManifest,  // Map of file paths to Storage URLs
+          entry_key: gameData.entryKey || "",
+          published: gameData.publish === false ? false : true,
+          credit_eligible: typeof gameData.creditEligible === "boolean" ? gameData.creditEligible : null,
+          players: 0,
+          plays_week: 0,
+          plays_total: 0,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        const ref = await this.games().add(payload);
+        return ref.id;
+      } catch(err) {
+        console.error("Create game error:", err);
+        throw err;
+      }
+    },
+    
+    _getMimeType(filePath) {
+      const ext = filePath.split('.').pop().toLowerCase();
+      const mimeTypes = {
+        'html': 'text/html',
+        'css': 'text/css',
+        'js': 'text/javascript',
+        'json': 'application/json',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'svg': 'image/svg+xml',
+        'mp3': 'audio/mpeg',
+        'mp4': 'video/mp4',
+        'webm': 'video/webm',
+        'woff': 'font/woff',
+        'woff2': 'font/woff2',
+        'ttf': 'font/ttf',
+        'eot': 'application/vnd.ms-fontobject'
       };
-      const ref = await this.games().add(payload);
-      return ref.id;
+      return mimeTypes[ext] || 'application/octet-stream';
     },
 
     async updateGameById(gameId, patch) {
@@ -338,25 +427,83 @@ if (isDefaultConfig) {
     },
 
     async uploadMusic(name, fileData, fileType) {
-      const orderIndex = await this.getNextOrderIndex();
-      const docRef = await this.music().add({
-        name,
-        file_data: fileData,
-        file_type: fileType,
-        order_index: orderIndex,
-        uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      return docRef.id;
+      try {
+        // Extract base64 data
+        const base64Data = fileData.split(',')[1];
+        const binaryData = atob(base64Data);
+        const byteArray = new Uint8Array(binaryData.length);
+        for (let i = 0; i < binaryData.length; i++) {
+          byteArray[i] = binaryData.charCodeAt(i);
+        }
+        
+        // Create sanitized filename
+        const timestamp = Date.now();
+        const filename = `${timestamp}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const storagePath = `music/${filename}`;
+        
+        // Upload to Storage
+        const uploadTask = storage.ref(storagePath).put(byteArray, { contentType: fileType });
+        
+        // Get download URL
+        const snapshot = await uploadTask;
+        const downloadUrl = await snapshot.ref.getDownloadURL();
+        
+        // Store metadata in Firestore (much smaller!)
+        const orderIndex = await this.getNextOrderIndex();
+        const docRef = await this.music().add({
+          name,
+          file_url: downloadUrl,  // Reference to Storage file
+          file_type: fileType,
+          order_index: orderIndex,
+          storage_path: storagePath,  // For deletion later
+          uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return docRef.id;
+      } catch(err) {
+        console.error("Upload error:", err);
+        throw err;
+      }
     },
 
     async deleteMusic(musicId) {
-      await this.music().doc(musicId).delete();
+      try {
+        const doc = await this.music().doc(musicId).get();
+        const data = doc.data();
+        
+        // Delete from Storage
+        if (data?.storage_path) {
+          await storage.ref(data.storage_path).delete().catch(() => {
+            // Ignore if file doesn't exist
+          });
+        }
+        
+        // Delete from Firestore
+        await this.music().doc(musicId).delete();
+      } catch(err) {
+        console.error("Delete error:", err);
+        throw err;
+      }
     },
 
     async clearAllMusic() {
       const snapshot = await this.music().get();
       const batch = db.batch();
-      snapshot.forEach(doc => batch.delete(doc.ref));
+      const deletionPromises = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // Delete from Storage
+        if (data?.storage_path) {
+          deletionPromises.push(
+            storage.ref(data.storage_path).delete().catch(() => {})
+          );
+        }
+        
+        batch.delete(doc.ref);
+      });
+      
+      await Promise.all(deletionPromises);
       await batch.commit();
     }
   };

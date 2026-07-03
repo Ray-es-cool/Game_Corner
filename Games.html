@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script src="firebase-env.js"></script>
 <script src="firebase-config.js"></script>
 
@@ -704,7 +705,7 @@ async function playGameById(gameId){
         await FireDB.incrementPlayCount(game.slotIndex);
     }
 
-    // Parse game files
+    // Parse game files - now they are Storage URLs
     let gameFiles = {};
     try {
         gameFiles = typeof game.gameFiles === 'string' ? JSON.parse(game.gameFiles) : (game.gameFiles || {});
@@ -721,37 +722,52 @@ async function playGameById(gameId){
         return;
     }
 
-    const main = gameFiles[mainKey];
+    // Get Storage URL for index.html
+    const indexUrl = gameFiles[mainKey];
+    
+    if(!indexUrl){
+        alert("Cannot load game files");
+        return;
+    }
 
-    // Open game in overlay
-    const overlay = document.getElementById("gameOverlay");
-    const frame = document.getElementById("gameFrame");
-    const title = document.getElementById("gameTitle");
+    try {
+        // For direct Storage URLs, we can set src directly (browser will handle it)
+        // Storage URLs support CORS by default
+        const overlay = document.getElementById("gameOverlay");
+        const frame = document.getElementById("gameFrame");
+        const title = document.getElementById("gameTitle");
 
-    if(overlay && frame){
-        title.innerText = "Playing: " + game.name;
-        currentPlaying.gameId = gameId;
-        currentPlaying.gotCreditResponse = false;
+        if(overlay && frame){
+            title.innerText = "Playing: " + game.name;
+            currentPlaying.gameId = gameId;
+            currentPlaying.gotCreditResponse = false;
 
-        // When iframe loads, ping for credit capability.
-        frame.onload = () => {
-            try{
-                frame.contentWindow?.postMessage({ type: "CRITSTRIKE_PING", gameId }, "*");
-            }catch(_) {}
+            // When iframe loads, ping for credit capability.
+            frame.onload = () => {
+                try{
+                    frame.contentWindow?.postMessage({ type: "CRITSTRIKE_PING", gameId }, "*");
+                }catch(_) {}
 
-            if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
-            currentPlaying.creditPingTimer = setTimeout(async () => {
-                // If no response, classify as non-credit (only if not decided yet)
-                if(!currentPlaying.gotCreditResponse && game.creditEligible === null){
-                    try{
-                        await FireDB.setGameCreditEligible(gameId, false);
-                        await loadGames();
-                    }catch(_) {}
-                }
-            }, 2500);
-        };
-        frame.src = main;
-        overlay.style.display = "block";
+                if(currentPlaying.creditPingTimer) clearTimeout(currentPlaying.creditPingTimer);
+                currentPlaying.creditPingTimer = setTimeout(async () => {
+                    // If no response, classify as non-credit (only if not decided yet)
+                    if(!currentPlaying.gotCreditResponse && game.creditEligible === null){
+                        try{
+                            await FireDB.setGameCreditEligible(gameId, false);
+                            await loadGames();
+                        }catch(_) {}
+                    }
+                }, 2500);
+            };
+            
+            // Set iframe src to Storage URL directly
+            // Firebase Storage URLs have CORS enabled and are publicly readable
+            frame.src = indexUrl;
+            overlay.style.display = "block";
+        }
+    } catch(err) {
+        console.error("Error playing game:", err);
+        alert("Error loading game: " + err.message);
     }
 }
 

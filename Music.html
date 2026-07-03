@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script src="firebase-env.js"></script>
 <script src="firebase-config.js"></script>
 
@@ -408,7 +409,8 @@ function playSelected(){
     const song = playlist[selectedIndex];
     const audio = getAudio();
 
-    audio.src = song.file_data;
+    // Use file_url (Storage URL) or fallback to file_data for legacy songs
+    audio.src = song.file_url || song.file_data;
     audio.currentTime = 0;
     audio.play().catch(() => {});
 

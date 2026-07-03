@@ -33,6 +33,44 @@ CritStrike now uses **Firebase** - Google's free cloud database platform. This m
 4. Toggle **"Enable"**
 5. Click **Save**
 
+## Step 3b: Enable Cloud Storage (NEW - Required!)
+
+Cloud Storage is now **required** for fast game loading:
+
+1. Click **"Storage"** in the left sidebar
+2. Click **"Get started"**
+3. Use the default bucket settings
+4. Choose location closest to your users
+5. Click **Done**
+
+**Security Rules for Storage:**
+In the Storage tab, go to **Rules** and paste:
+
+```javascript
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read access to all files
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+    // Allow write access only for Game_Master
+    match /music/{fileName} {
+      allow write: if request.auth.uid != null &&
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == 'Game_Master';
+    }
+    match /game_thumbnails/{fileName} {
+      allow write: if request.auth.uid != null &&
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == 'Game_Master';
+    }
+    match /games/{gameId}/{allPaths=**} {
+      allow write: if request.auth.uid != null &&
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == 'Game_Master';
+    }
+  }
+}
+```
+
 ## Step 4: Add Web App to Firebase
 
 1. Click the **gear icon** (⚙️) next to "Project Overview"
